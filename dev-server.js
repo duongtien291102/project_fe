@@ -17,13 +17,13 @@ const __dirname = path.dirname(__filename);
 
 function cleanSource(filePath) {
     const fullPath = path.join(__dirname, filePath);
-    const content = fs.readFileSync(fullPath, 'utf-8');
+    const content = fs.readFileSync(fullPath, 'utf-8').replace(/^\uFEFF/, '');
     const lines = content.split('\n');
     const filtered = [];
 
     for (let line of lines) {
         const stripped = line.trim();
-        if (stripped.startswith?.('import ') || stripped.startsWith('import ') || (stripped.startsWith('from ') && stripped.includes('import '))) {
+        if (stripped.startsWith('import ') || (stripped.startsWith('from ') && stripped.includes('import '))) {
             continue;
         }
         if (stripped.startsWith('} from ')) {
@@ -45,7 +45,9 @@ function cleanSource(filePath) {
 }
 
 export function buildStandalone() {
-    const cssContent = fs.readFileSync(path.join(__dirname, 'src/index.css'), 'utf-8');
+    const cssContent = fs.readFileSync(path.join(__dirname, 'src/index.css'), 'utf-8')
+        .replace(/^\uFEFF/, '')
+        .replace(/<\/?style>/gi, '');
 
     const modelsCode = [
         cleanSource('src/models/StorageService.js'),

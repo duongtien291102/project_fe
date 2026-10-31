@@ -1,11 +1,11 @@
 import os
 import re
 
-with open('src/index.css', 'r', encoding='utf-8') as f:
-    css_content = f.read()
+with open('src/index.css', 'r', encoding='utf-8-sig') as f:
+    css_content = re.sub(r'</?style>', '', f.read(), flags=re.IGNORECASE)
 
 def clean_source(file_path):
-    with open(file_path, 'r', encoding='utf-8') as f:
+    with open(file_path, 'r', encoding='utf-8-sig') as f:
         content = f.read()
     lines = content.split('\n')
     filtered = []
