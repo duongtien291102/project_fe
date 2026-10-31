@@ -144,9 +144,10 @@ Hệ thống cung cấp sẵn file `build_react_standalone.py`. File này chịu
 **YÊU CẦU ĐỐI VỚI AI:**
 > Sau khi tạo mới, sửa đổi hoặc thêm tính năng vào bất kỳ file nào trong `src/`, AI **BẮT BUỘC** phải chạy lệnh:
 > ```bash
-> python build_react_standalone.py
+> npm run build
+> # hoặc: python build_react_standalone.py
 > ```
-> để cập nhật đồng bộ cho cả `react.html` và `index.html`.
+> để cập nhật đồng bộ cho cả `react.html` và `index.html`. Khi chạy môi trường phát triển, sử dụng `npm run dev` (chạy trực tiếp bằng `node dev-server.js` không cần cài thư viện ngoài).
 
 ---
 
