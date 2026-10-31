@@ -566,13 +566,46 @@ export function useHotelController() {
     };
 
     // -------------------------------------------------------------
-    // Admin Navigation Guard
+    // Admin Navigation Guard (RBAC Auto-Redirect & Hide)
     // -------------------------------------------------------------
-    const handleTabChange = (tabId, requiredPerm) => {
-        if (requiredPerm && !checkPermission(requiredPerm)) {
-            addToast('Từ chối truy cập', 'Vai trò hiện tại không có quyền truy cập trang này.', 'danger');
-            return;
+    const canAccessAdminTab = tabId => {
+        switch (tabId) {
+            case 'dashboard':
+                return checkPermission('view_kpi') || checkPermission('view_revenue');
+            case 'rooms-management':
+                return checkPermission('manage_rooms') || checkPermission('room_checkin_checkout') || checkPermission('room_cleaning');
+            case 'bookings-management':
+                return checkPermission('manage_bookings');
+            case 'financial-ledger':
+                return checkPermission('manage_finances');
+            case 'users-management':
+                return checkPermission('view_staff') || checkPermission('manage_staff');
+            case 'permissions-config':
+                return checkPermission('config_permissions');
+            default:
+                return true;
         }
+    };
+
+    useEffect(() => {
+        if (!canAccessAdminTab(adminTab)) {
+            const tabOrder = [
+                'dashboard',
+                'rooms-management',
+                'bookings-management',
+                'financial-ledger',
+                'users-management',
+                'permissions-config'
+            ];
+            const firstAllowed = tabOrder.find(t => canAccessAdminTab(t));
+            if (firstAllowed) {
+                setAdminTab(firstAllowed);
+            }
+        }
+    }, [activeStaffId, rolesConfig, adminTab]);
+
+    const handleTabChange = tabId => {
+        if (!canAccessAdminTab(tabId)) return;
         setAdminTab(tabId);
     };
 

@@ -2,7 +2,8 @@
  * ============================================================================
  * VIEW: BookingsView
  * ============================================================================
- * Danh sách toàn bộ đơn đặt phòng, tiền cọc và nút xem chi tiết ảnh CCCD
+ * Danh sách toàn bộ đơn đặt phòng, tiền cọc và nút xem chi tiết ảnh CCCD.
+ * Chỉ hiển thị các cột doanh thu / nút chức năng mà vai trò hiện tại được cấp quyền.
  */
 
 import React from 'react';
@@ -21,6 +22,7 @@ export default function BookingsView({
     const canCancel = checkPermission('cancel_booking');
     const canViewRev = checkPermission('view_revenue');
     const canCreateBooking = checkPermission('create_booking');
+    const showActionColumn = canCheckInOut || canCancel;
 
     return (
         <div id="bookings-management" className="admin-page-panel active">
@@ -48,11 +50,11 @@ export default function BookingsView({
                                 <th>Số CCCD / Hộ Chiếu</th>
                                 <th>Hồ Sơ CCCD</th>
                                 <th>Phòng</th>
-                                <th>Tổng Tiền</th>
-                                <th>Đã Cọc</th>
-                                <th>Còn Lại</th>
+                                {canViewRev && <th>Tổng Tiền</th>}
+                                {canViewRev && <th>Đã Cọc</th>}
+                                {canViewRev && <th>Còn Lại</th>}
                                 <th>Trạng Thái</th>
-                                <th>Xử Lý</th>
+                                {showActionColumn && <th>Xử Lý</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -62,7 +64,7 @@ export default function BookingsView({
                                 if (b.status === 'Đã hoàn thành') badgeClass = 'badge-available';
                                 if (b.status === 'Đã hủy') badgeClass = 'badge-cleaning';
 
-                                let actionNode;
+                                let actionNode = null;
                                 if (b.status === 'Chờ check-in') {
                                     actionNode = (
                                         <div style={{ display: 'flex', gap: '6px' }}>
@@ -79,13 +81,13 @@ export default function BookingsView({
                                         </div>
                                     );
                                 } else if (b.status === 'Đã check-in') {
-                                    actionNode = canCheckInOut ? (
-                                        <button className="btn btn-sm btn-gold" onClick={() => onOpenCheckoutModal(b.roomId)}>
-                                            <i className="fa-solid fa-receipt"></i> Trả Phòng & Thu Tiền
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Đang ở</span>
-                                    );
+                                    if (canCheckInOut) {
+                                        actionNode = (
+                                            <button className="btn btn-sm btn-gold" onClick={() => onOpenCheckoutModal(b.roomId)}>
+                                                <i className="fa-solid fa-receipt"></i> Trả Phòng & Thu Tiền
+                                            </button>
+                                        );
+                                    }
                                 } else {
                                     actionNode = (
                                         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -116,27 +118,33 @@ export default function BookingsView({
                                             </button>
                                         </td>
                                         <td>Phòng {b.roomId}</td>
-                                        <td>
-                                            <strong style={{ color: 'var(--gold-dark)' }}>
-                                                {canViewRev ? formatVND(b.totalAmount) : '***'}
-                                            </strong>
-                                        </td>
-                                        <td>
-                                            <span className="status-badge badge-deposit">
-                                                {canViewRev ? formatVND(b.depositAmount) : '***'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <strong style={{ color: 'var(--danger)' }}>
-                                                {canViewRev ? formatVND(b.remainingAmount) : '***'}
-                                            </strong>
-                                        </td>
+                                        {canViewRev && (
+                                            <td>
+                                                <strong style={{ color: 'var(--gold-dark)' }}>
+                                                    {formatVND(b.totalAmount)}
+                                                </strong>
+                                            </td>
+                                        )}
+                                        {canViewRev && (
+                                            <td>
+                                                <span className="status-badge badge-deposit">
+                                                    {formatVND(b.depositAmount)}
+                                                </span>
+                                            </td>
+                                        )}
+                                        {canViewRev && (
+                                            <td>
+                                                <strong style={{ color: 'var(--danger)' }}>
+                                                    {formatVND(b.remainingAmount)}
+                                                </strong>
+                                            </td>
+                                        )}
                                         <td>
                                             <span className={`status-badge ${badgeClass}`}>
                                                 <span className="status-dot"></span> {b.status}
                                             </span>
                                         </td>
-                                        <td>{actionNode}</td>
+                                        {showActionColumn && <td>{actionNode}</td>}
                                     </tr>
                                 );
                             })}

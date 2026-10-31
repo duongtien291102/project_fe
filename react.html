@@ -1939,13 +1939,46 @@ function useHotelController() {
     };
 
     // -------------------------------------------------------------
-    // Admin Navigation Guard
+    // Admin Navigation Guard (RBAC Auto-Redirect & Hide)
     // -------------------------------------------------------------
-    const handleTabChange = (tabId, requiredPerm) => {
-        if (requiredPerm && !checkPermission(requiredPerm)) {
-            addToast('Từ chối truy cập', 'Vai trò hiện tại không có quyền truy cập trang này.', 'danger');
-            return;
+    const canAccessAdminTab = tabId => {
+        switch (tabId) {
+            case 'dashboard':
+                return checkPermission('view_kpi') || checkPermission('view_revenue');
+            case 'rooms-management':
+                return checkPermission('manage_rooms') || checkPermission('room_checkin_checkout') || checkPermission('room_cleaning');
+            case 'bookings-management':
+                return checkPermission('manage_bookings');
+            case 'financial-ledger':
+                return checkPermission('manage_finances');
+            case 'users-management':
+                return checkPermission('view_staff') || checkPermission('manage_staff');
+            case 'permissions-config':
+                return checkPermission('config_permissions');
+            default:
+                return true;
         }
+    };
+
+    useEffect(() => {
+        if (!canAccessAdminTab(adminTab)) {
+            const tabOrder = [
+                'dashboard',
+                'rooms-management',
+                'bookings-management',
+                'financial-ledger',
+                'users-management',
+                'permissions-config'
+            ];
+            const firstAllowed = tabOrder.find(t => canAccessAdminTab(t));
+            if (firstAllowed) {
+                setAdminTab(firstAllowed);
+            }
+        }
+    }, [activeStaffId, rolesConfig, adminTab]);
+
+    const handleTabChange = tabId => {
+        if (!canAccessAdminTab(tabId)) return;
         setAdminTab(tabId);
     };
 
@@ -2378,7 +2411,8 @@ function FooterView() {
  * ============================================================================
  * VIEW: AdminSidebarView
  * ============================================================================
- * Thanh sidebar điều hướng cho khu vực quản trị Admin
+ * Thanh sidebar điều hướng cho khu vực quản trị Admin.
+ * Chỉ hiển thị các chức năng/menu mà vai trò hiện tại được cấp quyền (RBAC).
  */
 
 
@@ -2386,8 +2420,29 @@ function AdminSidebarView({
     adminTab,
     onTabChange,
     onViewCustomerLanding,
-    onResetDemoData
+    onResetDemoData,
+    checkPermission
 }) {
+    const canAccessTab = item => {
+        if (!checkPermission) return true;
+        switch (item.id) {
+            case 'dashboard':
+                return checkPermission('view_kpi') || checkPermission('view_revenue');
+            case 'rooms-management':
+                return checkPermission('manage_rooms') || checkPermission('room_checkin_checkout') || checkPermission('room_cleaning');
+            case 'bookings-management':
+                return checkPermission('manage_bookings');
+            case 'financial-ledger':
+                return checkPermission('manage_finances');
+            case 'users-management':
+                return checkPermission('view_staff') || checkPermission('manage_staff');
+            case 'permissions-config':
+                return checkPermission('config_permissions');
+            default:
+                return !item.perm || checkPermission(item.perm);
+        }
+    };
+
     const navItems = [
         { id: 'dashboard', label: 'Dashboard Doanh Thu (3 Năm)', icon: 'fa-chart-line', perm: 'view_kpi' },
         { id: 'rooms-management', label: 'Quản Lý Phòng', icon: 'fa-door-open', perm: null },
@@ -2396,6 +2451,9 @@ function AdminSidebarView({
         { id: 'users-management', label: 'Quản Lý Phân Quyền', icon: 'fa-users-gear', perm: 'view_staff' },
         { id: 'permissions-config', label: 'Cấu Hình Phân Quyền', icon: 'fa-shield-halved', perm: 'config_permissions' }
     ];
+
+    const visibleNavItems = navItems.filter(canAccessTab);
+    const canResetSystem = checkPermission ? checkPermission('system_reset') : true;
 
     return (
         <aside className="admin-sidebar" id="adminSidebar">
@@ -2408,13 +2466,13 @@ function AdminSidebarView({
             </div>
 
             <ul className="admin-nav">
-                {navItems.map(item => {
+                {visibleNavItems.map(item => {
                     const isActive = adminTab === item.id;
                     return (
                         <li
                             key={item.id}
                             className={`nav-item ${isActive ? 'active' : ''}`}
-                            onClick={() => onTabChange(item.id, item.perm)}
+                            onClick={() => onTabChange(item.id)}
                         >
                             <i className={`fa-solid ${item.icon}`}></i>
                             <span>{item.label}</span>
@@ -2426,18 +2484,20 @@ function AdminSidebarView({
             <div className="sidebar-bottom">
                 <button
                     className="btn btn-outline-gold"
-                    style={{ width: '100%', fontSize: '0.85rem', marginBottom: '10px' }}
+                    style={{ width: '100%', fontSize: '0.85rem', marginBottom: canResetSystem ? '10px' : '0' }}
                     onClick={onViewCustomerLanding}
                 >
                     <i className="fa-solid fa-arrow-left"></i> Xem Trang Khách
                 </button>
-                <button
-                    className="btn btn-dark"
-                    style={{ width: '100%', fontSize: '0.85rem', border: '1px solid rgba(255,255,255,0.15)' }}
-                    onClick={onResetDemoData}
-                >
-                    <i className="fa-solid fa-rotate"></i> Reset Dữ Liệu Gốc
-                </button>
+                {canResetSystem && (
+                    <button
+                        className="btn btn-dark"
+                        style={{ width: '100%', fontSize: '0.85rem', border: '1px solid rgba(255,255,255,0.15)' }}
+                        onClick={onResetDemoData}
+                    >
+                        <i className="fa-solid fa-rotate"></i> Reset Dữ Liệu Gốc
+                    </button>
+                )}
             </div>
         </aside>
     );
@@ -2522,7 +2582,9 @@ function DashboardView({
     const chartTrendInstance = useRef(null);
     const chartDonutInstance = useRef(null);
 
+    const canViewKpi = checkPermission('view_kpi');
     const canViewRev = checkPermission('view_revenue');
+    const canManageBookings = checkPermission('manage_bookings');
 
     // Filter target months
     let targetMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -2747,7 +2809,7 @@ function DashboardView({
             if (chartTrendInstance.current) chartTrendInstance.current.destroy();
             if (chartDonutInstance.current) chartDonutInstance.current.destroy();
         };
-    }, [yearFilter, periodFilter, roomTypeFilter, donutMode, historicalRevenue, liveBookingAddOnRevenue]);
+    }, [yearFilter, periodFilter, roomTypeFilter, donutMode, historicalRevenue, liveBookingAddOnRevenue, canViewRev]);
 
     // Export Excel via SheetJS
     const handleExportExcel = mode => {
@@ -2894,329 +2956,357 @@ function DashboardView({
 
     return (
         <div id="dashboard" className="admin-page-panel active">
-            {/* Toolbar */}
-            <div className="revenue-toolbar-card">
-                <div className="rev-tool-title">
-                    <h3><i className="fa-solid fa-chart-line" style={{ color: 'var(--gold-primary)' }}></i> BÁO CÁO DOANH THU & CHỈ SỐ TÀI CHÍNH 3 NĂM (2024 - 2026)</h3>
-                    <p>Hệ thống thống kê lũy kế thời gian thực, đối soát tăng trưởng doanh thu & xuất file Excel phục vụ kiểm toán tài chính (MVC Architecture)</p>
-                </div>
-                <div className="rev-filters-wrap">
-                    <select
-                        value={yearFilter}
-                        onChange={e => setYearFilter(e.target.value)}
-                        className="rev-select"
-                        title="Chọn năm thống kê"
-                    >
-                        <option value="ALL">Tất Cả 3 Năm (2024 - 2026)</option>
-                        <option value="2026">Năm 2026 (Năm hiện tại)</option>
-                        <option value="2025">Năm 2025</option>
-                        <option value="2024">Năm 2024</option>
-                    </select>
-                    <select
-                        value={periodFilter}
-                        onChange={e => setPeriodFilter(e.target.value)}
-                        className="rev-select"
-                        title="Chọn kỳ báo cáo"
-                    >
-                        <option value="ALL">Cả Năm (12 Tháng)</option>
-                        <option value="Q1">Quý 1 (Tháng 1 - 3)</option>
-                        <option value="Q2">Quý 2 (Tháng 4 - 6)</option>
-                        <option value="Q3">Quý 3 (Tháng 7 - 9)</option>
-                        <option value="Q4">Quý 4 (Tháng 10 - 12)</option>
-                    </select>
-                    <select
-                        value={roomTypeFilter}
-                        onChange={e => setRoomTypeFilter(e.target.value)}
-                        className="rev-select"
-                        title="Chọn hạng phòng"
-                    >
-                        <option value="ALL">Tất Cả Hạng Phòng</option>
-                        <option value="Deluxe">Deluxe Ocean View</option>
-                        <option value="Suite">Premier Family Suite</option>
-                        <option value="Executive">Executive Club Suite</option>
-                        <option value="Villa">Presidential Ocean Villa</option>
-                    </select>
-                    <button
-                        className="btn-excel"
-                        onClick={() => handleExportExcel('summary')}
-                        title="Tải xuống bảng tổng hợp doanh thu 3 năm định dạng chuẩn Excel .xlsx"
-                    >
-                        <i className="fa-solid fa-file-excel"></i> Xuất Excel Báo Cáo 3 Năm (.xlsx)
-                    </button>
-                    <button
-                        className="btn btn-outline-gold"
-                        onClick={() => handleExportExcel('detailed')}
-                        style={{ fontSize: '0.85rem' }}
-                        title="Xuất toàn bộ danh sách giao dịch khách lưu trú"
-                    >
-                        <i className="fa-solid fa-file-invoice-dollar"></i> Xuất Chi Tiết Giao Dịch
-                    </button>
-                </div>
-            </div>
-
-            {/* 5 Financial KPIs */}
-            <div className="rev-kpi-grid">
-                <div className="rev-kpi-card">
-                    <div className="rev-kpi-header">
-                        <span className="rev-kpi-label">Tổng Doanh Thu Thuần</span>
-                        <div className="rev-kpi-icon" style={{ background: 'var(--gold-light)', color: 'var(--gold-dark)' }}>
-                            <i className="fa-solid fa-sack-dollar"></i>
-                        </div>
+            {/* Toolbar Báo cáo doanh thu 3 năm - Chỉ hiển thị khi có quyền view_revenue */}
+            {canViewRev && (
+                <div className="revenue-toolbar-card">
+                    <div className="rev-tool-title">
+                        <h3><i className="fa-solid fa-chart-line" style={{ color: 'var(--gold-primary)' }}></i> BÁO CÁO DOANH THU & CHỈ SỐ TÀI CHÍNH 3 NĂM (2024 - 2026)</h3>
+                        <p>Hệ thống thống kê lũy kế thời gian thực, đối soát tăng trưởng doanh thu & xuất file Excel phục vụ kiểm toán tài chính (MVC Architecture)</p>
                     </div>
-                    <div className="rev-kpi-value" style={{ color: 'var(--gold-dark)' }}>
-                        {canViewRev ? formatVND(totalRev) : 'Được bảo mật'}
-                    </div>
-                    <div>
-                        <span className="rev-kpi-badge positive">
-                            <i className="fa-solid fa-arrow-trend-up"></i> {yearFilter === '2026' ? '+22.0% YoY' : yearFilter === '2025' ? '+32.4% vs 2024' : yearFilter === '2024' ? 'Năm Cơ Sở' : '+61.5% Lũy Kế'}
-                        </span>
-                        <div className="rev-kpi-sub">Lũy kế theo bộ lọc</div>
-                    </div>
-                </div>
-
-                <div className="rev-kpi-card blue">
-                    <div className="rev-kpi-header">
-                        <span className="rev-kpi-label">Tiền Phòng vs Dịch Vụ</span>
-                        <div className="rev-kpi-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                            <i className="fa-solid fa-hotel"></i>
-                        </div>
-                    </div>
-                    <div className="rev-kpi-value" style={{ fontSize: '1.35rem' }}>
-                        {canViewRev ? formatVND(totalRoomRev) : 'Được bảo mật'}
-                    </div>
-                    <div className="rev-kpi-sub">
-                        Dịch vụ & Minibar: {canViewRev ? formatVND(totalServiceRev) : '***'} ({Math.round((totalServiceRev / (totalRev || 1)) * 100)}%)
-                    </div>
-                </div>
-
-                <div className="rev-kpi-card emerald">
-                    <div className="rev-kpi-header">
-                        <span className="rev-kpi-label">Số Đêm Phòng & Lấp Đầy</span>
-                        <div className="rev-kpi-icon" style={{ background: '#d1fae5', color: '#059669' }}>
-                            <i className="fa-solid fa-bed"></i>
-                        </div>
-                    </div>
-                    <div className="rev-kpi-value" style={{ color: '#059669' }}>
-                        {totalNights.toLocaleString('vi-VN')} Đêm
-                    </div>
-                    <div className="rev-kpi-sub">Tỷ lệ lấp đầy TB: {avgOcc}%</div>
-                </div>
-
-                <div className="rev-kpi-card purple">
-                    <div className="rev-kpi-header">
-                        <span className="rev-kpi-label">Chỉ Số ADR & RevPAR</span>
-                        <div className="rev-kpi-icon" style={{ background: '#ede9fe', color: '#7c3aed' }}>
-                            <i className="fa-solid fa-chart-pie"></i>
-                        </div>
-                    </div>
-                    <div className="rev-kpi-value" style={{ color: '#7c3aed', fontSize: '1.35rem' }}>
-                        {canViewRev ? `ADR: ${formatVND(adr)}` : 'Được bảo mật'}
-                    </div>
-                    <div className="rev-kpi-sub">RevPAR: {canViewRev ? `${formatVND(revPar)} / phòng` : '***'}</div>
-                </div>
-
-                <div className="rev-kpi-card amber">
-                    <div className="rev-kpi-header">
-                        <span className="rev-kpi-label">Dòng Tiền Cọc & Thực Thu</span>
-                        <div className="rev-kpi-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
-                            <i className="fa-solid fa-money-bill-transfer"></i>
-                        </div>
-                    </div>
-                    <div className="rev-kpi-value" style={{ fontSize: '1.35rem', color: '#d97706' }}>
-                        {canViewRev ? `Cọc: ${formatVND(totalDeposit)}` : 'Được bảo mật'}
-                    </div>
-                    <div className="rev-kpi-sub">Thực thu thanh toán: {canViewRev ? formatVND(settled) : '***'}</div>
-                </div>
-            </div>
-
-            {/* Charts Grid */}
-            <div className="charts-container-grid">
-                <div className="chart-card">
-                    <div className="chart-card-header">
-                        <h4><i className="fa-solid fa-chart-column" style={{ color: 'var(--gold-primary)' }}></i> Xu Hướng Doanh Thu 12 Tháng & So Sánh Tăng Trưởng 3 Năm</h4>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#94a3b8', borderRadius: '50%', marginRight: '4px' }}></span> 2024
-                            <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#3b82f6', borderRadius: '50%', marginLeft: '10px', marginRight: '4px' }}></span> 2025
-                            <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#d4af37', borderRadius: '50%', marginLeft: '10px', marginRight: '4px' }}></span> 2026
-                        </div>
-                    </div>
-                    <div className="chart-canvas-box">
-                        <canvas ref={chartTrendRef}></canvas>
-                    </div>
-                </div>
-
-                <div className="chart-card">
-                    <div className="chart-card-header">
-                        <h4><i className="fa-solid fa-pie-chart" style={{ color: '#0284c7' }}></i> Tỷ Trọng Theo Hạng Phòng</h4>
+                    <div className="rev-filters-wrap">
                         <select
-                            value={donutMode}
-                            onChange={e => setDonutMode(e.target.value)}
+                            value={yearFilter}
+                            onChange={e => setYearFilter(e.target.value)}
                             className="rev-select"
-                            style={{ padding: '4px 8px', fontSize: '0.78rem' }}
+                            title="Chọn năm thống kê"
                         >
-                            <option value="room">Theo Hạng Phòng</option>
-                            <option value="payment">Theo Kênh Thanh Toán</option>
+                            <option value="ALL">Tất Cả 3 Năm (2024 - 2026)</option>
+                            <option value="2026">Năm 2026 (Năm hiện tại)</option>
+                            <option value="2025">Năm 2025</option>
+                            <option value="2024">Năm 2024</option>
                         </select>
-                    </div>
-                    <div className="chart-canvas-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <canvas ref={chartDonutRef}></canvas>
+                        <select
+                            value={periodFilter}
+                            onChange={e => setPeriodFilter(e.target.value)}
+                            className="rev-select"
+                            title="Chọn kỳ báo cáo"
+                        >
+                            <option value="ALL">Cả Năm (12 Tháng)</option>
+                            <option value="Q1">Quý 1 (Tháng 1 - 3)</option>
+                            <option value="Q2">Quý 2 (Tháng 4 - 6)</option>
+                            <option value="Q3">Quý 3 (Tháng 7 - 9)</option>
+                            <option value="Q4">Quý 4 (Tháng 10 - 12)</option>
+                        </select>
+                        <select
+                            value={roomTypeFilter}
+                            onChange={e => setRoomTypeFilter(e.target.value)}
+                            className="rev-select"
+                            title="Chọn hạng phòng"
+                        >
+                            <option value="ALL">Tất Cả Hạng Phòng</option>
+                            <option value="Deluxe">Deluxe Ocean View</option>
+                            <option value="Suite">Premier Family Suite</option>
+                            <option value="Executive">Executive Club Suite</option>
+                            <option value="Villa">Presidential Ocean Villa</option>
+                        </select>
+                        <button
+                            className="btn-excel"
+                            onClick={() => handleExportExcel('summary')}
+                            title="Tải xuống bảng tổng hợp doanh thu 3 năm định dạng chuẩn Excel .xlsx"
+                        >
+                            <i className="fa-solid fa-file-excel"></i> Xuất Excel Báo Cáo 3 Năm (.xlsx)
+                        </button>
+                        <button
+                            className="btn btn-outline-gold"
+                            onClick={() => handleExportExcel('detailed')}
+                            style={{ fontSize: '0.85rem' }}
+                            title="Xuất toàn bộ danh sách giao dịch khách lưu trú"
+                        >
+                            <i className="fa-solid fa-file-invoice-dollar"></i> Xuất Chi Tiết Giao Dịch
+                        </button>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* Matrix Table */}
-            <div className="table-card" style={{ marginBottom: '25px' }}>
-                <div className="table-header-box">
-                    <div>
-                        <h3 className="table-title"><i className="fa-solid fa-table-list" style={{ color: 'var(--gold-primary)' }}></i> Bảng Ma Trận Doanh Thu 12 Tháng & Tăng Trưởng Lũy Kế</h3>
-                        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            So sánh đối soát chi tiết từng tháng qua các năm 2024, 2025, 2026 và các chỉ số vận hành
-                        </p>
+            {/* 5 Financial KPIs - Chỉ hiển thị các thẻ được phân quyền */}
+            {(canViewRev || canViewKpi) && (
+                <div className="rev-kpi-grid">
+                    {canViewRev && (
+                        <div className="rev-kpi-card">
+                            <div className="rev-kpi-header">
+                                <span className="rev-kpi-label">Tổng Doanh Thu Thuần</span>
+                                <div className="rev-kpi-icon" style={{ background: 'var(--gold-light)', color: 'var(--gold-dark)' }}>
+                                    <i className="fa-solid fa-sack-dollar"></i>
+                                </div>
+                            </div>
+                            <div className="rev-kpi-value" style={{ color: 'var(--gold-dark)' }}>
+                                {formatVND(totalRev)}
+                            </div>
+                            <div>
+                                <span className="rev-kpi-badge positive">
+                                    <i className="fa-solid fa-arrow-trend-up"></i> {yearFilter === '2026' ? '+22.0% YoY' : yearFilter === '2025' ? '+32.4% vs 2024' : yearFilter === '2024' ? 'Năm Cơ Sở' : '+61.5% Lũy Kế'}
+                                </span>
+                                <div className="rev-kpi-sub">Lũy kế theo bộ lọc</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {canViewRev && (
+                        <div className="rev-kpi-card blue">
+                            <div className="rev-kpi-header">
+                                <span className="rev-kpi-label">Tiền Phòng vs Dịch Vụ</span>
+                                <div className="rev-kpi-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+                                    <i className="fa-solid fa-hotel"></i>
+                                </div>
+                            </div>
+                            <div className="rev-kpi-value" style={{ fontSize: '1.35rem' }}>
+                                {formatVND(totalRoomRev)}
+                            </div>
+                            <div className="rev-kpi-sub">
+                                Dịch vụ & Minibar: {formatVND(totalServiceRev)} ({Math.round((totalServiceRev / (totalRev || 1)) * 100)}%)
+                            </div>
+                        </div>
+                    )}
+
+                    {canViewKpi && (
+                        <div className="rev-kpi-card emerald">
+                            <div className="rev-kpi-header">
+                                <span className="rev-kpi-label">Số Đêm Phòng & Lấp Đầy</span>
+                                <div className="rev-kpi-icon" style={{ background: '#d1fae5', color: '#059669' }}>
+                                    <i className="fa-solid fa-bed"></i>
+                                </div>
+                            </div>
+                            <div className="rev-kpi-value" style={{ color: '#059669' }}>
+                                {totalNights.toLocaleString('vi-VN')} Đêm
+                            </div>
+                            <div className="rev-kpi-sub">Tỷ lệ lấp đầy TB: {avgOcc}%</div>
+                        </div>
+                    )}
+
+                    {canViewRev && (
+                        <div className="rev-kpi-card purple">
+                            <div className="rev-kpi-header">
+                                <span className="rev-kpi-label">Chỉ Số ADR & RevPAR</span>
+                                <div className="rev-kpi-icon" style={{ background: '#ede9fe', color: '#7c3aed' }}>
+                                    <i className="fa-solid fa-chart-pie"></i>
+                                </div>
+                            </div>
+                            <div className="rev-kpi-value" style={{ color: '#7c3aed', fontSize: '1.35rem' }}>
+                                ADR: {formatVND(adr)}
+                            </div>
+                            <div className="rev-kpi-sub">RevPAR: {formatVND(revPar)} / phòng</div>
+                        </div>
+                    )}
+
+                    {canViewRev && (
+                        <div className="rev-kpi-card amber">
+                            <div className="rev-kpi-header">
+                                <span className="rev-kpi-label">Dòng Tiền Cọc & Thực Thu</span>
+                                <div className="rev-kpi-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+                                    <i className="fa-solid fa-money-bill-transfer"></i>
+                                </div>
+                            </div>
+                            <div className="rev-kpi-value" style={{ fontSize: '1.35rem', color: '#d97706' }}>
+                                Cọc: {formatVND(totalDeposit)}
+                            </div>
+                            <div className="rev-kpi-sub">Thực thu thanh toán: {formatVND(settled)}</div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Charts Grid - Chỉ hiển thị khi có quyền view_revenue */}
+            {canViewRev && (
+                <div className="charts-container-grid">
+                    <div className="chart-card">
+                        <div className="chart-card-header">
+                            <h4><i className="fa-solid fa-chart-column" style={{ color: 'var(--gold-primary)' }}></i> Xu Hướng Doanh Thu 12 Tháng & So Sánh Tăng Trưởng 3 Năm</h4>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#94a3b8', borderRadius: '50%', marginRight: '4px' }}></span> 2024
+                                <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#3b82f6', borderRadius: '50%', marginLeft: '10px', marginRight: '4px' }}></span> 2025
+                                <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#d4af37', borderRadius: '50%', marginLeft: '10px', marginRight: '4px' }}></span> 2026
+                            </div>
+                        </div>
+                        <div className="chart-canvas-box">
+                            <canvas ref={chartTrendRef}></canvas>
+                        </div>
                     </div>
-                    <button className="btn btn-sm btn-excel" onClick={() => handleExportExcel('summary')}>
-                        <i className="fa-solid fa-file-excel"></i> Xuất Bảng Này Sang Excel
-                    </button>
+
+                    <div className="chart-card">
+                        <div className="chart-card-header">
+                            <h4><i className="fa-solid fa-pie-chart" style={{ color: '#0284c7' }}></i> Tỷ Trọng Theo Hạng Phòng</h4>
+                            <select
+                                value={donutMode}
+                                onChange={e => setDonutMode(e.target.value)}
+                                className="rev-select"
+                                style={{ padding: '4px 8px', fontSize: '0.78rem' }}
+                            >
+                                <option value="room">Theo Hạng Phòng</option>
+                                <option value="payment">Theo Kênh Thanh Toán</option>
+                            </select>
+                        </div>
+                        <div className="chart-canvas-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <canvas ref={chartDonutRef}></canvas>
+                        </div>
+                    </div>
                 </div>
-                <div className="matrix-table-wrap">
-                    <table className="matrix-table">
-                        <thead>
-                            <tr>
-                                <th>Tháng</th>
-                                <th>Doanh Thu 2024 (₫)</th>
-                                <th>Doanh Thu 2025 (₫)</th>
-                                <th>Doanh Thu 2026 (₫)</th>
-                                <th>Tăng Trưởng 26 vs 25</th>
-                                <th>Đêm Phòng (2026)</th>
-                                <th>Tỷ Lệ Lấp Đầy</th>
-                                <th>Giá TB ADR (2026)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {matrixRows.map(row => (
-                                <tr key={row.month} style={{ opacity: row.isIncluded ? 1 : 0.45 }}>
-                                    <td><strong>Tháng {row.month < 10 ? '0' + row.month : row.month}</strong></td>
-                                    <td>{formatVND(row.t24)}</td>
-                                    <td>{formatVND(row.t25)}</td>
-                                    <td><strong style={{ color: 'var(--gold-dark)' }}>{formatVND(row.t26)}</strong></td>
-                                    <td>
-                                        {row.growth > 0 ? (
-                                            <span className="growth-badge-up"><i className="fa-solid fa-arrow-up"></i> +{row.growth}%</span>
-                                        ) : (
-                                            <span className="growth-badge-neutral">{row.growth}%</span>
-                                        )}
-                                    </td>
-                                    <td>{row.nights} đêm</td>
-                                    <td>{row.occ}%</td>
-                                    <td>{formatVND(row.adr)}</td>
+            )}
+
+            {/* Matrix Table - Chỉ hiển thị khi có quyền view_revenue */}
+            {canViewRev && (
+                <div className="table-card" style={{ marginBottom: '25px' }}>
+                    <div className="table-header-box">
+                        <div>
+                            <h3 className="table-title"><i className="fa-solid fa-table-list" style={{ color: 'var(--gold-primary)' }}></i> Bảng Ma Trận Doanh Thu 12 Tháng & Tăng Trưởng Lũy Kế</h3>
+                            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                So sánh đối soát chi tiết từng tháng qua các năm 2024, 2025, 2026 và các chỉ số vận hành
+                            </p>
+                        </div>
+                        <button className="btn btn-sm btn-excel" onClick={() => handleExportExcel('summary')}>
+                            <i className="fa-solid fa-file-excel"></i> Xuất Bảng Này Sang Excel
+                        </button>
+                    </div>
+                    <div className="matrix-table-wrap">
+                        <table className="matrix-table">
+                            <thead>
+                                <tr>
+                                    <th>Tháng</th>
+                                    <th>Doanh Thu 2024 (₫)</th>
+                                    <th>Doanh Thu 2025 (₫)</th>
+                                    <th>Doanh Thu 2026 (₫)</th>
+                                    <th>Tăng Trưởng 26 vs 25</th>
+                                    <th>Đêm Phòng (2026)</th>
+                                    <th>Tỷ Lệ Lấp Đầy</th>
+                                    <th>Giá TB ADR (2026)</th>
                                 </tr>
-                            ))}
-                            <tr className="row-total">
-                                <td><strong>TỔNG CỘNG CẢ NĂM</strong></td>
-                                <td>{formatVND(grand24)}</td>
-                                <td>{formatVND(grand25)}</td>
-                                <td><strong>{formatVND(grand26)}</strong></td>
-                                <td><span className="growth-badge-up"><i className="fa-solid fa-arrow-up"></i> +{grandGrowth}%</span></td>
-                                <td>{grandNights26.toLocaleString('vi-VN')} đêm</td>
-                                <td>88.5%</td>
-                                <td>{formatVND(grandADR)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {matrixRows.map(row => (
+                                    <tr key={row.month} style={{ opacity: row.isIncluded ? 1 : 0.45 }}>
+                                        <td><strong>Tháng {row.month < 10 ? '0' + row.month : row.month}</strong></td>
+                                        <td>{formatVND(row.t24)}</td>
+                                        <td>{formatVND(row.t25)}</td>
+                                        <td><strong style={{ color: 'var(--gold-dark)' }}>{formatVND(row.t26)}</strong></td>
+                                        <td>
+                                            {row.growth > 0 ? (
+                                                <span className="growth-badge-up"><i className="fa-solid fa-arrow-up"></i> +{row.growth}%</span>
+                                            ) : (
+                                                <span className="growth-badge-neutral">{row.growth}%</span>
+                                            )}
+                                        </td>
+                                        <td>{row.nights} đêm</td>
+                                        <td>{row.occ}%</td>
+                                        <td>{formatVND(row.adr)}</td>
+                                    </tr>
+                                ))}
+                                <tr className="row-total">
+                                    <td><strong>TỔNG CỘNG CẢ NĂM</strong></td>
+                                    <td>{formatVND(grand24)}</td>
+                                    <td>{formatVND(grand25)}</td>
+                                    <td><strong>{formatVND(grand26)}</strong></td>
+                                    <td><span className="growth-badge-up"><i className="fa-solid fa-arrow-up"></i> +{grandGrowth}%</span></td>
+                                    <td>{grandNights26.toLocaleString('vi-VN')} đêm</td>
+                                    <td>88.5%</td>
+                                    <td>{formatVND(grandADR)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Quick Room Status KPIs */}
-            <div className="kpi-grid">
-                <div className="kpi-card">
-                    <div className="kpi-info">
-                        <h4>Tổng Số Phòng</h4>
-                        <div className="kpi-val">{totalRooms}</div>
-                        <div className="kpi-sub">Hệ thống phòng lưu trú</div>
-                    </div>
-                    <div className="kpi-icon-box" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                        <i className="fa-solid fa-building"></i>
-                    </div>
-                </div>
-                <div className="kpi-card">
-                    <div className="kpi-info">
-                        <h4>Phòng Đang Trống</h4>
-                        <div className="kpi-val" style={{ color: 'var(--success)' }}>{availableRooms}</div>
-                        <div className="kpi-sub">{reservedRooms} phòng đang chờ nhận</div>
-                    </div>
-                    <div className="kpi-icon-box" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
-                        <i className="fa-solid fa-door-open"></i>
-                    </div>
-                </div>
-                <div className="kpi-card">
-                    <div className="kpi-info">
-                        <h4>Phòng Đang Thuê</h4>
-                        <div className="kpi-val" style={{ color: 'var(--danger)' }}>{occupiedRooms}</div>
-                        <div className="kpi-sub">Tỷ lệ lấp đầy: {occRate}%</div>
-                    </div>
-                    <div className="kpi-icon-box" style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}>
-                        <i className="fa-solid fa-user-check"></i>
-                    </div>
-                </div>
-                <div className="kpi-card">
-                    <div className="kpi-info">
-                        <h4>Thực Thu Tiền Về</h4>
-                        <div className="kpi-val" style={{ color: 'var(--gold-dark)' }}>
-                            {canViewRev ? formatVND(totalCollected) : 'Được bảo mật'}
+            {(canViewKpi || canViewRev) && (
+                <div className="kpi-grid">
+                    {canViewKpi && (
+                        <>
+                            <div className="kpi-card">
+                                <div className="kpi-info">
+                                    <h4>Tổng Số Phòng</h4>
+                                    <div className="kpi-val">{totalRooms}</div>
+                                    <div className="kpi-sub">Hệ thống phòng lưu trú</div>
+                                </div>
+                                <div className="kpi-icon-box" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+                                    <i className="fa-solid fa-building"></i>
+                                </div>
+                            </div>
+                            <div className="kpi-card">
+                                <div className="kpi-info">
+                                    <h4>Phòng Đang Trống</h4>
+                                    <div className="kpi-val" style={{ color: 'var(--success)' }}>{availableRooms}</div>
+                                    <div className="kpi-sub">{reservedRooms} phòng đang chờ nhận</div>
+                                </div>
+                                <div className="kpi-icon-box" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
+                                    <i className="fa-solid fa-door-open"></i>
+                                </div>
+                            </div>
+                            <div className="kpi-card">
+                                <div className="kpi-info">
+                                    <h4>Phòng Đang Thuê</h4>
+                                    <div className="kpi-val" style={{ color: 'var(--danger)' }}>{occupiedRooms}</div>
+                                    <div className="kpi-sub">Tỷ lệ lấp đầy: {occRate}%</div>
+                                </div>
+                                <div className="kpi-icon-box" style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}>
+                                    <i className="fa-solid fa-user-check"></i>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                    {canViewRev && (
+                        <div className="kpi-card">
+                            <div className="kpi-info">
+                                <h4>Thực Thu Tiền Về</h4>
+                                <div className="kpi-val" style={{ color: 'var(--gold-dark)' }}>
+                                    {formatVND(totalCollected)}
+                                </div>
+                                <div className="kpi-sub">
+                                    Cọc đang giữ: {formatVND(totalDepositHolding)}
+                                </div>
+                            </div>
+                            <div className="kpi-icon-box" style={{ background: 'var(--gold-light)', color: 'var(--gold-dark)' }}>
+                                <i className="fa-solid fa-sack-dollar"></i>
+                            </div>
                         </div>
-                        <div className="kpi-sub">
-                            {canViewRev ? `Cọc đang giữ: ${formatVND(totalDepositHolding)}` : 'Được bảo mật'}
-                        </div>
-                    </div>
-                    <div className="kpi-icon-box" style={{ background: 'var(--gold-light)', color: 'var(--gold-dark)' }}>
-                        <i className="fa-solid fa-sack-dollar"></i>
-                    </div>
+                    )}
                 </div>
-            </div>
+            )}
 
-            {/* Recent Bookings */}
-            <div className="table-card">
-                <div className="table-header-box">
-                    <h3 className="table-title">Các Đơn Đặt Phòng Mới Nhất & Đối Soát CCCD</h3>
-                    <button className="btn btn-sm btn-blue" onClick={() => onNavigateTab('bookings-management')}>
-                        Xem Tất Cả Đơn Đặt
-                    </button>
+            {/* Recent Bookings - Chỉ hiển thị khi có quyền manage_bookings */}
+            {canManageBookings && (
+                <div className="table-card">
+                    <div className="table-header-box">
+                        <h3 className="table-title">Các Đơn Đặt Phòng Mới Nhất & Đối Soát CCCD</h3>
+                        <button className="btn btn-sm btn-blue" onClick={() => onNavigateTab('bookings-management')}>
+                            Xem Tất Cả Đơn Đặt
+                        </button>
+                    </div>
+                    <div className="data-table-wrap">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Mã Đơn</th>
+                                    <th>Khách Hàng (CCCD)</th>
+                                    <th>Phòng</th>
+                                    {canViewRev && <th>Tổng Tiền</th>}
+                                    {canViewRev && <th>Đã Cọc</th>}
+                                    <th>Trạng Thái</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {bookings.slice(0, 5).map(b => {
+                                    const badgeClass = b.status === 'Đã check-in' ? 'badge-occupied' : (b.status === 'Đã hoàn thành' ? 'badge-available' : 'badge-reserved');
+                                    return (
+                                        <tr key={b.id}>
+                                            <td><strong>{b.id}</strong></td>
+                                            <td>{b.customerName} <br /><small style={{ color: 'var(--text-muted)' }}>CCCD: {b.cccd || '---'}</small></td>
+                                            <td>Phòng {b.roomId}</td>
+                                            {canViewRev && <td><strong>{formatVND(b.totalAmount)}</strong></td>}
+                                            {canViewRev && <td><span className="status-badge badge-deposit">{formatVND(b.depositAmount)}</span></td>}
+                                            <td><span className={`status-badge ${badgeClass}`}><span className="status-dot"></span> {b.status}</span></td>
+                                            <td>
+                                                <button className="btn btn-sm btn-outline-gold" onClick={() => onNavigateTab('bookings-management')}>
+                                                    Chi tiết
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div className="data-table-wrap">
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Mã Đơn</th>
-                                <th>Khách Hàng (CCCD)</th>
-                                <th>Phòng</th>
-                                <th>Tổng Tiền</th>
-                                <th>Đã Cọc</th>
-                                <th>Trạng Thái</th>
-                                <th>Thao Tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {bookings.slice(0, 5).map(b => {
-                                const badgeClass = b.status === 'Đã check-in' ? 'badge-occupied' : (b.status === 'Đã hoàn thành' ? 'badge-available' : 'badge-reserved');
-                                return (
-                                    <tr key={b.id}>
-                                        <td><strong>{b.id}</strong></td>
-                                        <td>{b.customerName} <br /><small style={{ color: 'var(--text-muted)' }}>CCCD: {b.cccd || '---'}</small></td>
-                                        <td>Phòng {b.roomId}</td>
-                                        <td><strong>{canViewRev ? formatVND(b.totalAmount) : '***'}</strong></td>
-                                        <td><span className="status-badge badge-deposit">{formatVND(b.depositAmount)}</span></td>
-                                        <td><span className={`status-badge ${badgeClass}`}><span className="status-dot"></span> {b.status}</span></td>
-                                        <td>
-                                            <button className="btn btn-sm btn-outline-gold" onClick={() => onNavigateTab('bookings-management')}>
-                                                Chi tiết
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            )}
         </div>
     );
 }
@@ -3226,7 +3316,8 @@ function DashboardView({
  * ============================================================================
  * VIEW: RoomsView
  * ============================================================================
- * Danh sách quản lý phòng, tìm kiếm, lọc trạng thái, check-in, check-out
+ * Danh sách quản lý phòng, tìm kiếm, lọc trạng thái, check-in, check-out.
+ * Chỉ hiển thị các nút chức năng mà vai trò hiện tại được cấp quyền.
  */
 
 
@@ -3243,8 +3334,10 @@ function RoomsView({
     const [statusFilter, setStatusFilter] = useState('ALL');
 
     const canCheckInOut = checkPermission('room_checkin_checkout');
+    const canCreateBooking = checkPermission('create_booking');
     const canClean = checkPermission('room_cleaning');
     const canManageRooms = checkPermission('manage_rooms');
+    const showActionColumn = canCheckInOut || canCreateBooking || canClean;
 
     const filteredRooms = rooms.filter(room => {
         const matchSearch = room.id.includes(searchVal) ||
@@ -3301,7 +3394,7 @@ function RoomsView({
                                 <th>Giá / Đêm</th>
                                 <th>Khách Đang Ở</th>
                                 <th>Trạng Thái</th>
-                                <th>Hành Động Trực Tiếp</th>
+                                {showActionColumn && <th>Hành Động Trực Tiếp</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -3311,39 +3404,39 @@ function RoomsView({
                                 if (room.status === 'Đã đặt') badgeClass = 'badge-reserved';
                                 if (room.status === 'Đang dọn') badgeClass = 'badge-cleaning';
 
-                                let actionNode;
+                                let actionNode = null;
                                 if (room.status === 'Trống') {
-                                    actionNode = canCheckInOut ? (
-                                        <button className="btn btn-sm btn-emerald" onClick={() => onQuickCheckIn(room.id)}>
-                                            <i className="fa-solid fa-user-plus"></i> Check-in
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sẵn sàng</span>
-                                    );
+                                    if (canCheckInOut && canCreateBooking) {
+                                        actionNode = (
+                                            <button className="btn btn-sm btn-emerald" onClick={() => onQuickCheckIn(room.id)}>
+                                                <i className="fa-solid fa-user-plus"></i> Check-in
+                                            </button>
+                                        );
+                                    }
                                 } else if (room.status === 'Đã đặt') {
-                                    actionNode = canCheckInOut ? (
-                                        <button className="btn btn-sm btn-blue" onClick={() => onConfirmCheckIn(room.id)}>
-                                            <i className="fa-solid fa-key"></i> Giao Chìa Khóa
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Chờ khách</span>
-                                    );
+                                    if (canCheckInOut) {
+                                        actionNode = (
+                                            <button className="btn btn-sm btn-blue" onClick={() => onConfirmCheckIn(room.id)}>
+                                                <i className="fa-solid fa-key"></i> Giao Chìa Khóa
+                                            </button>
+                                        );
+                                    }
                                 } else if (room.status === 'Đang thuê') {
-                                    actionNode = canCheckInOut ? (
-                                        <button className="btn btn-sm btn-gold" onClick={() => onOpenCheckoutModal(room.id)}>
-                                            <i className="fa-solid fa-receipt"></i> Trả Phòng & Bill
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Đang lưu trú</span>
-                                    );
+                                    if (canCheckInOut) {
+                                        actionNode = (
+                                            <button className="btn btn-sm btn-gold" onClick={() => onOpenCheckoutModal(room.id)}>
+                                                <i className="fa-solid fa-receipt"></i> Trả Phòng & Bill
+                                            </button>
+                                        );
+                                    }
                                 } else if (room.status === 'Đang dọn') {
-                                    actionNode = canClean ? (
-                                        <button className="btn btn-sm btn-dark" onClick={() => onCompleteCleaning(room.id)}>
-                                            <i className="fa-solid fa-sparkles"></i> Đã Dọn Xong
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Đang dọn phòng</span>
-                                    );
+                                    if (canClean) {
+                                        actionNode = (
+                                            <button className="btn btn-sm btn-dark" onClick={() => onCompleteCleaning(room.id)}>
+                                                <i className="fa-solid fa-sparkles"></i> Đã Dọn Xong
+                                            </button>
+                                        );
+                                    }
                                 }
 
                                 return (
@@ -3370,7 +3463,7 @@ function RoomsView({
                                                 <span className="status-dot"></span> {room.status}
                                             </span>
                                         </td>
-                                        <td>{actionNode}</td>
+                                        {showActionColumn && <td>{actionNode}</td>}
                                     </tr>
                                 );
                             })}
@@ -3387,7 +3480,8 @@ function RoomsView({
  * ============================================================================
  * VIEW: BookingsView
  * ============================================================================
- * Danh sách toàn bộ đơn đặt phòng, tiền cọc và nút xem chi tiết ảnh CCCD
+ * Danh sách toàn bộ đơn đặt phòng, tiền cọc và nút xem chi tiết ảnh CCCD.
+ * Chỉ hiển thị các cột doanh thu / nút chức năng mà vai trò hiện tại được cấp quyền.
  */
 
 
@@ -3404,6 +3498,7 @@ function BookingsView({
     const canCancel = checkPermission('cancel_booking');
     const canViewRev = checkPermission('view_revenue');
     const canCreateBooking = checkPermission('create_booking');
+    const showActionColumn = canCheckInOut || canCancel;
 
     return (
         <div id="bookings-management" className="admin-page-panel active">
@@ -3431,11 +3526,11 @@ function BookingsView({
                                 <th>Số CCCD / Hộ Chiếu</th>
                                 <th>Hồ Sơ CCCD</th>
                                 <th>Phòng</th>
-                                <th>Tổng Tiền</th>
-                                <th>Đã Cọc</th>
-                                <th>Còn Lại</th>
+                                {canViewRev && <th>Tổng Tiền</th>}
+                                {canViewRev && <th>Đã Cọc</th>}
+                                {canViewRev && <th>Còn Lại</th>}
                                 <th>Trạng Thái</th>
-                                <th>Xử Lý</th>
+                                {showActionColumn && <th>Xử Lý</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -3445,7 +3540,7 @@ function BookingsView({
                                 if (b.status === 'Đã hoàn thành') badgeClass = 'badge-available';
                                 if (b.status === 'Đã hủy') badgeClass = 'badge-cleaning';
 
-                                let actionNode;
+                                let actionNode = null;
                                 if (b.status === 'Chờ check-in') {
                                     actionNode = (
                                         <div style={{ display: 'flex', gap: '6px' }}>
@@ -3462,13 +3557,13 @@ function BookingsView({
                                         </div>
                                     );
                                 } else if (b.status === 'Đã check-in') {
-                                    actionNode = canCheckInOut ? (
-                                        <button className="btn btn-sm btn-gold" onClick={() => onOpenCheckoutModal(b.roomId)}>
-                                            <i className="fa-solid fa-receipt"></i> Trả Phòng & Thu Tiền
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Đang ở</span>
-                                    );
+                                    if (canCheckInOut) {
+                                        actionNode = (
+                                            <button className="btn btn-sm btn-gold" onClick={() => onOpenCheckoutModal(b.roomId)}>
+                                                <i className="fa-solid fa-receipt"></i> Trả Phòng & Thu Tiền
+                                            </button>
+                                        );
+                                    }
                                 } else {
                                     actionNode = (
                                         <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
@@ -3499,27 +3594,33 @@ function BookingsView({
                                             </button>
                                         </td>
                                         <td>Phòng {b.roomId}</td>
-                                        <td>
-                                            <strong style={{ color: 'var(--gold-dark)' }}>
-                                                {canViewRev ? formatVND(b.totalAmount) : '***'}
-                                            </strong>
-                                        </td>
-                                        <td>
-                                            <span className="status-badge badge-deposit">
-                                                {canViewRev ? formatVND(b.depositAmount) : '***'}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            <strong style={{ color: 'var(--danger)' }}>
-                                                {canViewRev ? formatVND(b.remainingAmount) : '***'}
-                                            </strong>
-                                        </td>
+                                        {canViewRev && (
+                                            <td>
+                                                <strong style={{ color: 'var(--gold-dark)' }}>
+                                                    {formatVND(b.totalAmount)}
+                                                </strong>
+                                            </td>
+                                        )}
+                                        {canViewRev && (
+                                            <td>
+                                                <span className="status-badge badge-deposit">
+                                                    {formatVND(b.depositAmount)}
+                                                </span>
+                                            </td>
+                                        )}
+                                        {canViewRev && (
+                                            <td>
+                                                <strong style={{ color: 'var(--danger)' }}>
+                                                    {formatVND(b.remainingAmount)}
+                                                </strong>
+                                            </td>
+                                        )}
                                         <td>
                                             <span className={`status-badge ${badgeClass}`}>
                                                 <span className="status-dot"></span> {b.status}
                                             </span>
                                         </td>
-                                        <td>{actionNode}</td>
+                                        {showActionColumn && <td>{actionNode}</td>}
                                     </tr>
                                 );
                             })}
@@ -3714,7 +3815,8 @@ function LedgerView({
  * ============================================================================
  * VIEW: StaffView
  * ============================================================================
- * Danh sách nhân sự, phân gán vai trò và quản lý tài khoản nội bộ
+ * Danh sách nhân sự, phân gán vai trò và quản lý tài khoản nội bộ.
+ * Chỉ hiển thị nút thêm và cột thao tác khi có quyền manage_staff.
  */
 
 
@@ -3786,44 +3888,13 @@ function StaffView({
                                 <th>Vai Trò (Role)</th>
                                 <th>Đăng Nhập Cuối</th>
                                 <th>Trạng Thái</th>
-                                <th>Thao Tác</th>
+                                {canManageStaff && <th>Thao Tác</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {filteredStaff.map(s => {
                                 const role = rolesConfig.find(r => r.id === s.roleId) || { name: s.roleId, badgeColor: '#64748b' };
                                 const isLocked = s.status === 'locked';
-
-                                let actionNode;
-                                if (canManageStaff) {
-                                    actionNode = (
-                                        <div style={{ display: 'flex', gap: '6px' }}>
-                                            <button
-                                                className="btn btn-sm btn-outline-gold"
-                                                onClick={() => onOpenEditStaffModal(s)}
-                                                title="Sửa"
-                                            >
-                                                <i className="fa-solid fa-pen"></i>
-                                            </button>
-                                            <button
-                                                className={`btn btn-sm ${isLocked ? 'btn-emerald' : 'btn-dark'}`}
-                                                onClick={() => onToggleStaffStatus(s.id)}
-                                                title={isLocked ? 'Mở khóa' : 'Khóa'}
-                                            >
-                                                <i className={`fa-solid ${isLocked ? 'fa-lock-open' : 'fa-lock'}`}></i>
-                                            </button>
-                                            <button
-                                                className="btn btn-sm btn-danger"
-                                                onClick={() => onDeleteStaffUser(s.id)}
-                                                title="Xóa"
-                                            >
-                                                <i className="fa-solid fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    );
-                                } else {
-                                    actionNode = <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Chỉ xem</span>;
-                                }
 
                                 return (
                                     <tr key={s.id}>
@@ -3864,7 +3935,33 @@ function StaffView({
                                                 <span className="status-dot"></span> {isLocked ? 'Đã khóa' : 'Hoạt động'}
                                             </span>
                                         </td>
-                                        <td>{actionNode}</td>
+                                        {canManageStaff && (
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '6px' }}>
+                                                    <button
+                                                        className="btn btn-sm btn-outline-gold"
+                                                        onClick={() => onOpenEditStaffModal(s)}
+                                                        title="Sửa"
+                                                    >
+                                                        <i className="fa-solid fa-pen"></i>
+                                                    </button>
+                                                    <button
+                                                        className={`btn btn-sm ${isLocked ? 'btn-emerald' : 'btn-dark'}`}
+                                                        onClick={() => onToggleStaffStatus(s.id)}
+                                                        title={isLocked ? 'Mở khóa' : 'Khóa'}
+                                                    >
+                                                        <i className={`fa-solid ${isLocked ? 'fa-lock-open' : 'fa-lock'}`}></i>
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-danger"
+                                                        onClick={() => onDeleteStaffUser(s.id)}
+                                                        title="Xóa"
+                                                    >
+                                                        <i className="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 );
                             })}
@@ -5436,6 +5533,7 @@ function App() {
                             onTabChange={ctrl.handleTabChange}
                             onViewCustomerLanding={() => ctrl.setViewMode('landing')}
                             onResetDemoData={ctrl.handleResetDemoData}
+                            checkPermission={ctrl.checkPermission}
                         />
 
                         <main className="admin-content">
@@ -5496,6 +5594,7 @@ function App() {
                                     <LedgerView
                                         transactions={ctrl.transactions}
                                         bookings={ctrl.bookings}
+                                        checkPermission={ctrl.checkPermission}
                                         onOpenManualTxModal={() => ctrl.openModal('manualTx')}
                                     />
                                 )}

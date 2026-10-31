@@ -2,7 +2,8 @@
  * ============================================================================
  * VIEW: RoomsView
  * ============================================================================
- * Danh sách quản lý phòng, tìm kiếm, lọc trạng thái, check-in, check-out
+ * Danh sách quản lý phòng, tìm kiếm, lọc trạng thái, check-in, check-out.
+ * Chỉ hiển thị các nút chức năng mà vai trò hiện tại được cấp quyền.
  */
 
 import React, { useState } from 'react';
@@ -21,8 +22,10 @@ export default function RoomsView({
     const [statusFilter, setStatusFilter] = useState('ALL');
 
     const canCheckInOut = checkPermission('room_checkin_checkout');
+    const canCreateBooking = checkPermission('create_booking');
     const canClean = checkPermission('room_cleaning');
     const canManageRooms = checkPermission('manage_rooms');
+    const showActionColumn = canCheckInOut || canCreateBooking || canClean;
 
     const filteredRooms = rooms.filter(room => {
         const matchSearch = room.id.includes(searchVal) ||
@@ -79,7 +82,7 @@ export default function RoomsView({
                                 <th>Giá / Đêm</th>
                                 <th>Khách Đang Ở</th>
                                 <th>Trạng Thái</th>
-                                <th>Hành Động Trực Tiếp</th>
+                                {showActionColumn && <th>Hành Động Trực Tiếp</th>}
                             </tr>
                         </thead>
                         <tbody>
@@ -89,39 +92,39 @@ export default function RoomsView({
                                 if (room.status === 'Đã đặt') badgeClass = 'badge-reserved';
                                 if (room.status === 'Đang dọn') badgeClass = 'badge-cleaning';
 
-                                let actionNode;
+                                let actionNode = null;
                                 if (room.status === 'Trống') {
-                                    actionNode = canCheckInOut ? (
-                                        <button className="btn btn-sm btn-emerald" onClick={() => onQuickCheckIn(room.id)}>
-                                            <i className="fa-solid fa-user-plus"></i> Check-in
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Sẵn sàng</span>
-                                    );
+                                    if (canCheckInOut && canCreateBooking) {
+                                        actionNode = (
+                                            <button className="btn btn-sm btn-emerald" onClick={() => onQuickCheckIn(room.id)}>
+                                                <i className="fa-solid fa-user-plus"></i> Check-in
+                                            </button>
+                                        );
+                                    }
                                 } else if (room.status === 'Đã đặt') {
-                                    actionNode = canCheckInOut ? (
-                                        <button className="btn btn-sm btn-blue" onClick={() => onConfirmCheckIn(room.id)}>
-                                            <i className="fa-solid fa-key"></i> Giao Chìa Khóa
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Chờ khách</span>
-                                    );
+                                    if (canCheckInOut) {
+                                        actionNode = (
+                                            <button className="btn btn-sm btn-blue" onClick={() => onConfirmCheckIn(room.id)}>
+                                                <i className="fa-solid fa-key"></i> Giao Chìa Khóa
+                                            </button>
+                                        );
+                                    }
                                 } else if (room.status === 'Đang thuê') {
-                                    actionNode = canCheckInOut ? (
-                                        <button className="btn btn-sm btn-gold" onClick={() => onOpenCheckoutModal(room.id)}>
-                                            <i className="fa-solid fa-receipt"></i> Trả Phòng & Bill
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Đang lưu trú</span>
-                                    );
+                                    if (canCheckInOut) {
+                                        actionNode = (
+                                            <button className="btn btn-sm btn-gold" onClick={() => onOpenCheckoutModal(room.id)}>
+                                                <i className="fa-solid fa-receipt"></i> Trả Phòng & Bill
+                                            </button>
+                                        );
+                                    }
                                 } else if (room.status === 'Đang dọn') {
-                                    actionNode = canClean ? (
-                                        <button className="btn btn-sm btn-dark" onClick={() => onCompleteCleaning(room.id)}>
-                                            <i className="fa-solid fa-sparkles"></i> Đã Dọn Xong
-                                        </button>
-                                    ) : (
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Đang dọn phòng</span>
-                                    );
+                                    if (canClean) {
+                                        actionNode = (
+                                            <button className="btn btn-sm btn-dark" onClick={() => onCompleteCleaning(room.id)}>
+                                                <i className="fa-solid fa-sparkles"></i> Đã Dọn Xong
+                                            </button>
+                                        );
+                                    }
                                 }
 
                                 return (
@@ -148,7 +151,7 @@ export default function RoomsView({
                                                 <span className="status-dot"></span> {room.status}
                                             </span>
                                         </td>
-                                        <td>{actionNode}</td>
+                                        {showActionColumn && <td>{actionNode}</td>}
                                     </tr>
                                 );
                             })}

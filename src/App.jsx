@@ -72,6 +72,7 @@ export default function App() {
                             onTabChange={ctrl.handleTabChange}
                             onViewCustomerLanding={() => ctrl.setViewMode('landing')}
                             onResetDemoData={ctrl.handleResetDemoData}
+                            checkPermission={ctrl.checkPermission}
                         />
 
                         <main className="admin-content">
@@ -132,6 +133,7 @@ export default function App() {
                                     <LedgerView
                                         transactions={ctrl.transactions}
                                         bookings={ctrl.bookings}
+                                        checkPermission={ctrl.checkPermission}
                                         onOpenManualTxModal={() => ctrl.openModal('manualTx')}
                                     />
                                 )}

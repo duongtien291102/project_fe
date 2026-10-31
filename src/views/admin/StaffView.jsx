@@ -2,7 +2,8 @@
  * ============================================================================
  * VIEW: StaffView
  * ============================================================================
- * Danh sách nhân sự, phân gán vai trò và quản lý tài khoản nội bộ
+ * Danh sách nhân sự, phân gán vai trò và quản lý tài khoản nội bộ.
+ * Chỉ hiển thị nút thêm và cột thao tác khi có quyền manage_staff.
  */
 
 import React, { useState } from 'react';
@@ -75,44 +76,13 @@ export default function StaffView({
                                 <th>Vai Trò (Role)</th>
                                 <th>Đăng Nhập Cuối</th>
                                 <th>Trạng Thái</th>
-                                <th>Thao Tác</th>
+                                {canManageStaff && <th>Thao Tác</th>}
                             </tr>
                         </thead>
                         <tbody>
                             {filteredStaff.map(s => {
                                 const role = rolesConfig.find(r => r.id === s.roleId) || { name: s.roleId, badgeColor: '#64748b' };
                                 const isLocked = s.status === 'locked';
-
-                                let actionNode;
-                                if (canManageStaff) {
-                                    actionNode = (
-                                        <div style={{ display: 'flex', gap: '6px' }}>
-                                            <button
-                                                className="btn btn-sm btn-outline-gold"
-                                                onClick={() => onOpenEditStaffModal(s)}
-                                                title="Sửa"
-                                            >
-                                                <i className="fa-solid fa-pen"></i>
-                                            </button>
-                                            <button
-                                                className={`btn btn-sm ${isLocked ? 'btn-emerald' : 'btn-dark'}`}
-                                                onClick={() => onToggleStaffStatus(s.id)}
-                                                title={isLocked ? 'Mở khóa' : 'Khóa'}
-                                            >
-                                                <i className={`fa-solid ${isLocked ? 'fa-lock-open' : 'fa-lock'}`}></i>
-                                            </button>
-                                            <button
-                                                className="btn btn-sm btn-danger"
-                                                onClick={() => onDeleteStaffUser(s.id)}
-                                                title="Xóa"
-                                            >
-                                                <i className="fa-solid fa-trash"></i>
-                                            </button>
-                                        </div>
-                                    );
-                                } else {
-                                    actionNode = <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Chỉ xem</span>;
-                                }
 
                                 return (
                                     <tr key={s.id}>
@@ -153,7 +123,33 @@ export default function StaffView({
                                                 <span className="status-dot"></span> {isLocked ? 'Đã khóa' : 'Hoạt động'}
                                             </span>
                                         </td>
-                                        <td>{actionNode}</td>
+                                        {canManageStaff && (
+                                            <td>
+                                                <div style={{ display: 'flex', gap: '6px' }}>
+                                                    <button
+                                                        className="btn btn-sm btn-outline-gold"
+                                                        onClick={() => onOpenEditStaffModal(s)}
+                                                        title="Sửa"
+                                                    >
+                                                        <i className="fa-solid fa-pen"></i>
+                                                    </button>
+                                                    <button
+                                                        className={`btn btn-sm ${isLocked ? 'btn-emerald' : 'btn-dark'}`}
+                                                        onClick={() => onToggleStaffStatus(s.id)}
+                                                        title={isLocked ? 'Mở khóa' : 'Khóa'}
+                                                    >
+                                                        <i className={`fa-solid ${isLocked ? 'fa-lock-open' : 'fa-lock'}`}></i>
+                                                    </button>
+                                                    <button
+                                                        className="btn btn-sm btn-danger"
+                                                        onClick={() => onDeleteStaffUser(s.id)}
+                                                        title="Xóa"
+                                                    >
+                                                        <i className="fa-solid fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 );
                             })}

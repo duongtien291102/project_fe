@@ -27,7 +27,9 @@ export default function DashboardView({
     const chartTrendInstance = useRef(null);
     const chartDonutInstance = useRef(null);
 
+    const canViewKpi = checkPermission('view_kpi');
     const canViewRev = checkPermission('view_revenue');
+    const canManageBookings = checkPermission('manage_bookings');
 
     // Filter target months
     let targetMonths = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
@@ -252,7 +254,7 @@ export default function DashboardView({
             if (chartTrendInstance.current) chartTrendInstance.current.destroy();
             if (chartDonutInstance.current) chartDonutInstance.current.destroy();
         };
-    }, [yearFilter, periodFilter, roomTypeFilter, donutMode, historicalRevenue, liveBookingAddOnRevenue]);
+    }, [yearFilter, periodFilter, roomTypeFilter, donutMode, historicalRevenue, liveBookingAddOnRevenue, canViewRev]);
 
     // Export Excel via SheetJS
     const handleExportExcel = mode => {
@@ -399,329 +401,357 @@ export default function DashboardView({
 
     return (
         <div id="dashboard" className="admin-page-panel active">
-            {/* Toolbar */}
-            <div className="revenue-toolbar-card">
-                <div className="rev-tool-title">
-                    <h3><i className="fa-solid fa-chart-line" style={{ color: 'var(--gold-primary)' }}></i> BÁO CÁO DOANH THU & CHỈ SỐ TÀI CHÍNH 3 NĂM (2024 - 2026)</h3>
-                    <p>Hệ thống thống kê lũy kế thời gian thực, đối soát tăng trưởng doanh thu & xuất file Excel phục vụ kiểm toán tài chính (MVC Architecture)</p>
-                </div>
-                <div className="rev-filters-wrap">
-                    <select
-                        value={yearFilter}
-                        onChange={e => setYearFilter(e.target.value)}
-                        className="rev-select"
-                        title="Chọn năm thống kê"
-                    >
-                        <option value="ALL">Tất Cả 3 Năm (2024 - 2026)</option>
-                        <option value="2026">Năm 2026 (Năm hiện tại)</option>
-                        <option value="2025">Năm 2025</option>
-                        <option value="2024">Năm 2024</option>
-                    </select>
-                    <select
-                        value={periodFilter}
-                        onChange={e => setPeriodFilter(e.target.value)}
-                        className="rev-select"
-                        title="Chọn kỳ báo cáo"
-                    >
-                        <option value="ALL">Cả Năm (12 Tháng)</option>
-                        <option value="Q1">Quý 1 (Tháng 1 - 3)</option>
-                        <option value="Q2">Quý 2 (Tháng 4 - 6)</option>
-                        <option value="Q3">Quý 3 (Tháng 7 - 9)</option>
-                        <option value="Q4">Quý 4 (Tháng 10 - 12)</option>
-                    </select>
-                    <select
-                        value={roomTypeFilter}
-                        onChange={e => setRoomTypeFilter(e.target.value)}
-                        className="rev-select"
-                        title="Chọn hạng phòng"
-                    >
-                        <option value="ALL">Tất Cả Hạng Phòng</option>
-                        <option value="Deluxe">Deluxe Ocean View</option>
-                        <option value="Suite">Premier Family Suite</option>
-                        <option value="Executive">Executive Club Suite</option>
-                        <option value="Villa">Presidential Ocean Villa</option>
-                    </select>
-                    <button
-                        className="btn-excel"
-                        onClick={() => handleExportExcel('summary')}
-                        title="Tải xuống bảng tổng hợp doanh thu 3 năm định dạng chuẩn Excel .xlsx"
-                    >
-                        <i className="fa-solid fa-file-excel"></i> Xuất Excel Báo Cáo 3 Năm (.xlsx)
-                    </button>
-                    <button
-                        className="btn btn-outline-gold"
-                        onClick={() => handleExportExcel('detailed')}
-                        style={{ fontSize: '0.85rem' }}
-                        title="Xuất toàn bộ danh sách giao dịch khách lưu trú"
-                    >
-                        <i className="fa-solid fa-file-invoice-dollar"></i> Xuất Chi Tiết Giao Dịch
-                    </button>
-                </div>
-            </div>
-
-            {/* 5 Financial KPIs */}
-            <div className="rev-kpi-grid">
-                <div className="rev-kpi-card">
-                    <div className="rev-kpi-header">
-                        <span className="rev-kpi-label">Tổng Doanh Thu Thuần</span>
-                        <div className="rev-kpi-icon" style={{ background: 'var(--gold-light)', color: 'var(--gold-dark)' }}>
-                            <i className="fa-solid fa-sack-dollar"></i>
-                        </div>
+            {/* Toolbar Báo cáo doanh thu 3 năm - Chỉ hiển thị khi có quyền view_revenue */}
+            {canViewRev && (
+                <div className="revenue-toolbar-card">
+                    <div className="rev-tool-title">
+                        <h3><i className="fa-solid fa-chart-line" style={{ color: 'var(--gold-primary)' }}></i> BÁO CÁO DOANH THU & CHỈ SỐ TÀI CHÍNH 3 NĂM (2024 - 2026)</h3>
+                        <p>Hệ thống thống kê lũy kế thời gian thực, đối soát tăng trưởng doanh thu & xuất file Excel phục vụ kiểm toán tài chính (MVC Architecture)</p>
                     </div>
-                    <div className="rev-kpi-value" style={{ color: 'var(--gold-dark)' }}>
-                        {canViewRev ? formatVND(totalRev) : 'Được bảo mật'}
-                    </div>
-                    <div>
-                        <span className="rev-kpi-badge positive">
-                            <i className="fa-solid fa-arrow-trend-up"></i> {yearFilter === '2026' ? '+22.0% YoY' : yearFilter === '2025' ? '+32.4% vs 2024' : yearFilter === '2024' ? 'Năm Cơ Sở' : '+61.5% Lũy Kế'}
-                        </span>
-                        <div className="rev-kpi-sub">Lũy kế theo bộ lọc</div>
-                    </div>
-                </div>
-
-                <div className="rev-kpi-card blue">
-                    <div className="rev-kpi-header">
-                        <span className="rev-kpi-label">Tiền Phòng vs Dịch Vụ</span>
-                        <div className="rev-kpi-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                            <i className="fa-solid fa-hotel"></i>
-                        </div>
-                    </div>
-                    <div className="rev-kpi-value" style={{ fontSize: '1.35rem' }}>
-                        {canViewRev ? formatVND(totalRoomRev) : 'Được bảo mật'}
-                    </div>
-                    <div className="rev-kpi-sub">
-                        Dịch vụ & Minibar: {canViewRev ? formatVND(totalServiceRev) : '***'} ({Math.round((totalServiceRev / (totalRev || 1)) * 100)}%)
-                    </div>
-                </div>
-
-                <div className="rev-kpi-card emerald">
-                    <div className="rev-kpi-header">
-                        <span className="rev-kpi-label">Số Đêm Phòng & Lấp Đầy</span>
-                        <div className="rev-kpi-icon" style={{ background: '#d1fae5', color: '#059669' }}>
-                            <i className="fa-solid fa-bed"></i>
-                        </div>
-                    </div>
-                    <div className="rev-kpi-value" style={{ color: '#059669' }}>
-                        {totalNights.toLocaleString('vi-VN')} Đêm
-                    </div>
-                    <div className="rev-kpi-sub">Tỷ lệ lấp đầy TB: {avgOcc}%</div>
-                </div>
-
-                <div className="rev-kpi-card purple">
-                    <div className="rev-kpi-header">
-                        <span className="rev-kpi-label">Chỉ Số ADR & RevPAR</span>
-                        <div className="rev-kpi-icon" style={{ background: '#ede9fe', color: '#7c3aed' }}>
-                            <i className="fa-solid fa-chart-pie"></i>
-                        </div>
-                    </div>
-                    <div className="rev-kpi-value" style={{ color: '#7c3aed', fontSize: '1.35rem' }}>
-                        {canViewRev ? `ADR: ${formatVND(adr)}` : 'Được bảo mật'}
-                    </div>
-                    <div className="rev-kpi-sub">RevPAR: {canViewRev ? `${formatVND(revPar)} / phòng` : '***'}</div>
-                </div>
-
-                <div className="rev-kpi-card amber">
-                    <div className="rev-kpi-header">
-                        <span className="rev-kpi-label">Dòng Tiền Cọc & Thực Thu</span>
-                        <div className="rev-kpi-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
-                            <i className="fa-solid fa-money-bill-transfer"></i>
-                        </div>
-                    </div>
-                    <div className="rev-kpi-value" style={{ fontSize: '1.35rem', color: '#d97706' }}>
-                        {canViewRev ? `Cọc: ${formatVND(totalDeposit)}` : 'Được bảo mật'}
-                    </div>
-                    <div className="rev-kpi-sub">Thực thu thanh toán: {canViewRev ? formatVND(settled) : '***'}</div>
-                </div>
-            </div>
-
-            {/* Charts Grid */}
-            <div className="charts-container-grid">
-                <div className="chart-card">
-                    <div className="chart-card-header">
-                        <h4><i className="fa-solid fa-chart-column" style={{ color: 'var(--gold-primary)' }}></i> Xu Hướng Doanh Thu 12 Tháng & So Sánh Tăng Trưởng 3 Năm</h4>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                            <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#94a3b8', borderRadius: '50%', marginRight: '4px' }}></span> 2024
-                            <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#3b82f6', borderRadius: '50%', marginLeft: '10px', marginRight: '4px' }}></span> 2025
-                            <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#d4af37', borderRadius: '50%', marginLeft: '10px', marginRight: '4px' }}></span> 2026
-                        </div>
-                    </div>
-                    <div className="chart-canvas-box">
-                        <canvas ref={chartTrendRef}></canvas>
-                    </div>
-                </div>
-
-                <div className="chart-card">
-                    <div className="chart-card-header">
-                        <h4><i className="fa-solid fa-pie-chart" style={{ color: '#0284c7' }}></i> Tỷ Trọng Theo Hạng Phòng</h4>
+                    <div className="rev-filters-wrap">
                         <select
-                            value={donutMode}
-                            onChange={e => setDonutMode(e.target.value)}
+                            value={yearFilter}
+                            onChange={e => setYearFilter(e.target.value)}
                             className="rev-select"
-                            style={{ padding: '4px 8px', fontSize: '0.78rem' }}
+                            title="Chọn năm thống kê"
                         >
-                            <option value="room">Theo Hạng Phòng</option>
-                            <option value="payment">Theo Kênh Thanh Toán</option>
+                            <option value="ALL">Tất Cả 3 Năm (2024 - 2026)</option>
+                            <option value="2026">Năm 2026 (Năm hiện tại)</option>
+                            <option value="2025">Năm 2025</option>
+                            <option value="2024">Năm 2024</option>
                         </select>
-                    </div>
-                    <div className="chart-canvas-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <canvas ref={chartDonutRef}></canvas>
+                        <select
+                            value={periodFilter}
+                            onChange={e => setPeriodFilter(e.target.value)}
+                            className="rev-select"
+                            title="Chọn kỳ báo cáo"
+                        >
+                            <option value="ALL">Cả Năm (12 Tháng)</option>
+                            <option value="Q1">Quý 1 (Tháng 1 - 3)</option>
+                            <option value="Q2">Quý 2 (Tháng 4 - 6)</option>
+                            <option value="Q3">Quý 3 (Tháng 7 - 9)</option>
+                            <option value="Q4">Quý 4 (Tháng 10 - 12)</option>
+                        </select>
+                        <select
+                            value={roomTypeFilter}
+                            onChange={e => setRoomTypeFilter(e.target.value)}
+                            className="rev-select"
+                            title="Chọn hạng phòng"
+                        >
+                            <option value="ALL">Tất Cả Hạng Phòng</option>
+                            <option value="Deluxe">Deluxe Ocean View</option>
+                            <option value="Suite">Premier Family Suite</option>
+                            <option value="Executive">Executive Club Suite</option>
+                            <option value="Villa">Presidential Ocean Villa</option>
+                        </select>
+                        <button
+                            className="btn-excel"
+                            onClick={() => handleExportExcel('summary')}
+                            title="Tải xuống bảng tổng hợp doanh thu 3 năm định dạng chuẩn Excel .xlsx"
+                        >
+                            <i className="fa-solid fa-file-excel"></i> Xuất Excel Báo Cáo 3 Năm (.xlsx)
+                        </button>
+                        <button
+                            className="btn btn-outline-gold"
+                            onClick={() => handleExportExcel('detailed')}
+                            style={{ fontSize: '0.85rem' }}
+                            title="Xuất toàn bộ danh sách giao dịch khách lưu trú"
+                        >
+                            <i className="fa-solid fa-file-invoice-dollar"></i> Xuất Chi Tiết Giao Dịch
+                        </button>
                     </div>
                 </div>
-            </div>
+            )}
 
-            {/* Matrix Table */}
-            <div className="table-card" style={{ marginBottom: '25px' }}>
-                <div className="table-header-box">
-                    <div>
-                        <h3 className="table-title"><i className="fa-solid fa-table-list" style={{ color: 'var(--gold-primary)' }}></i> Bảng Ma Trận Doanh Thu 12 Tháng & Tăng Trưởng Lũy Kế</h3>
-                        <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            So sánh đối soát chi tiết từng tháng qua các năm 2024, 2025, 2026 và các chỉ số vận hành
-                        </p>
+            {/* 5 Financial KPIs - Chỉ hiển thị các thẻ được phân quyền */}
+            {(canViewRev || canViewKpi) && (
+                <div className="rev-kpi-grid">
+                    {canViewRev && (
+                        <div className="rev-kpi-card">
+                            <div className="rev-kpi-header">
+                                <span className="rev-kpi-label">Tổng Doanh Thu Thuần</span>
+                                <div className="rev-kpi-icon" style={{ background: 'var(--gold-light)', color: 'var(--gold-dark)' }}>
+                                    <i className="fa-solid fa-sack-dollar"></i>
+                                </div>
+                            </div>
+                            <div className="rev-kpi-value" style={{ color: 'var(--gold-dark)' }}>
+                                {formatVND(totalRev)}
+                            </div>
+                            <div>
+                                <span className="rev-kpi-badge positive">
+                                    <i className="fa-solid fa-arrow-trend-up"></i> {yearFilter === '2026' ? '+22.0% YoY' : yearFilter === '2025' ? '+32.4% vs 2024' : yearFilter === '2024' ? 'Năm Cơ Sở' : '+61.5% Lũy Kế'}
+                                </span>
+                                <div className="rev-kpi-sub">Lũy kế theo bộ lọc</div>
+                            </div>
+                        </div>
+                    )}
+
+                    {canViewRev && (
+                        <div className="rev-kpi-card blue">
+                            <div className="rev-kpi-header">
+                                <span className="rev-kpi-label">Tiền Phòng vs Dịch Vụ</span>
+                                <div className="rev-kpi-icon" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+                                    <i className="fa-solid fa-hotel"></i>
+                                </div>
+                            </div>
+                            <div className="rev-kpi-value" style={{ fontSize: '1.35rem' }}>
+                                {formatVND(totalRoomRev)}
+                            </div>
+                            <div className="rev-kpi-sub">
+                                Dịch vụ & Minibar: {formatVND(totalServiceRev)} ({Math.round((totalServiceRev / (totalRev || 1)) * 100)}%)
+                            </div>
+                        </div>
+                    )}
+
+                    {canViewKpi && (
+                        <div className="rev-kpi-card emerald">
+                            <div className="rev-kpi-header">
+                                <span className="rev-kpi-label">Số Đêm Phòng & Lấp Đầy</span>
+                                <div className="rev-kpi-icon" style={{ background: '#d1fae5', color: '#059669' }}>
+                                    <i className="fa-solid fa-bed"></i>
+                                </div>
+                            </div>
+                            <div className="rev-kpi-value" style={{ color: '#059669' }}>
+                                {totalNights.toLocaleString('vi-VN')} Đêm
+                            </div>
+                            <div className="rev-kpi-sub">Tỷ lệ lấp đầy TB: {avgOcc}%</div>
+                        </div>
+                    )}
+
+                    {canViewRev && (
+                        <div className="rev-kpi-card purple">
+                            <div className="rev-kpi-header">
+                                <span className="rev-kpi-label">Chỉ Số ADR & RevPAR</span>
+                                <div className="rev-kpi-icon" style={{ background: '#ede9fe', color: '#7c3aed' }}>
+                                    <i className="fa-solid fa-chart-pie"></i>
+                                </div>
+                            </div>
+                            <div className="rev-kpi-value" style={{ color: '#7c3aed', fontSize: '1.35rem' }}>
+                                ADR: {formatVND(adr)}
+                            </div>
+                            <div className="rev-kpi-sub">RevPAR: {formatVND(revPar)} / phòng</div>
+                        </div>
+                    )}
+
+                    {canViewRev && (
+                        <div className="rev-kpi-card amber">
+                            <div className="rev-kpi-header">
+                                <span className="rev-kpi-label">Dòng Tiền Cọc & Thực Thu</span>
+                                <div className="rev-kpi-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+                                    <i className="fa-solid fa-money-bill-transfer"></i>
+                                </div>
+                            </div>
+                            <div className="rev-kpi-value" style={{ fontSize: '1.35rem', color: '#d97706' }}>
+                                Cọc: {formatVND(totalDeposit)}
+                            </div>
+                            <div className="rev-kpi-sub">Thực thu thanh toán: {formatVND(settled)}</div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Charts Grid - Chỉ hiển thị khi có quyền view_revenue */}
+            {canViewRev && (
+                <div className="charts-container-grid">
+                    <div className="chart-card">
+                        <div className="chart-card-header">
+                            <h4><i className="fa-solid fa-chart-column" style={{ color: 'var(--gold-primary)' }}></i> Xu Hướng Doanh Thu 12 Tháng & So Sánh Tăng Trưởng 3 Năm</h4>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#94a3b8', borderRadius: '50%', marginRight: '4px' }}></span> 2024
+                                <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#3b82f6', borderRadius: '50%', marginLeft: '10px', marginRight: '4px' }}></span> 2025
+                                <span style={{ display: 'inline-block', width: '10px', height: '10px', background: '#d4af37', borderRadius: '50%', marginLeft: '10px', marginRight: '4px' }}></span> 2026
+                            </div>
+                        </div>
+                        <div className="chart-canvas-box">
+                            <canvas ref={chartTrendRef}></canvas>
+                        </div>
                     </div>
-                    <button className="btn btn-sm btn-excel" onClick={() => handleExportExcel('summary')}>
-                        <i className="fa-solid fa-file-excel"></i> Xuất Bảng Này Sang Excel
-                    </button>
+
+                    <div className="chart-card">
+                        <div className="chart-card-header">
+                            <h4><i className="fa-solid fa-pie-chart" style={{ color: '#0284c7' }}></i> Tỷ Trọng Theo Hạng Phòng</h4>
+                            <select
+                                value={donutMode}
+                                onChange={e => setDonutMode(e.target.value)}
+                                className="rev-select"
+                                style={{ padding: '4px 8px', fontSize: '0.78rem' }}
+                            >
+                                <option value="room">Theo Hạng Phòng</option>
+                                <option value="payment">Theo Kênh Thanh Toán</option>
+                            </select>
+                        </div>
+                        <div className="chart-canvas-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <canvas ref={chartDonutRef}></canvas>
+                        </div>
+                    </div>
                 </div>
-                <div className="matrix-table-wrap">
-                    <table className="matrix-table">
-                        <thead>
-                            <tr>
-                                <th>Tháng</th>
-                                <th>Doanh Thu 2024 (₫)</th>
-                                <th>Doanh Thu 2025 (₫)</th>
-                                <th>Doanh Thu 2026 (₫)</th>
-                                <th>Tăng Trưởng 26 vs 25</th>
-                                <th>Đêm Phòng (2026)</th>
-                                <th>Tỷ Lệ Lấp Đầy</th>
-                                <th>Giá TB ADR (2026)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {matrixRows.map(row => (
-                                <tr key={row.month} style={{ opacity: row.isIncluded ? 1 : 0.45 }}>
-                                    <td><strong>Tháng {row.month < 10 ? '0' + row.month : row.month}</strong></td>
-                                    <td>{formatVND(row.t24)}</td>
-                                    <td>{formatVND(row.t25)}</td>
-                                    <td><strong style={{ color: 'var(--gold-dark)' }}>{formatVND(row.t26)}</strong></td>
-                                    <td>
-                                        {row.growth > 0 ? (
-                                            <span className="growth-badge-up"><i className="fa-solid fa-arrow-up"></i> +{row.growth}%</span>
-                                        ) : (
-                                            <span className="growth-badge-neutral">{row.growth}%</span>
-                                        )}
-                                    </td>
-                                    <td>{row.nights} đêm</td>
-                                    <td>{row.occ}%</td>
-                                    <td>{formatVND(row.adr)}</td>
+            )}
+
+            {/* Matrix Table - Chỉ hiển thị khi có quyền view_revenue */}
+            {canViewRev && (
+                <div className="table-card" style={{ marginBottom: '25px' }}>
+                    <div className="table-header-box">
+                        <div>
+                            <h3 className="table-title"><i className="fa-solid fa-table-list" style={{ color: 'var(--gold-primary)' }}></i> Bảng Ma Trận Doanh Thu 12 Tháng & Tăng Trưởng Lũy Kế</h3>
+                            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                So sánh đối soát chi tiết từng tháng qua các năm 2024, 2025, 2026 và các chỉ số vận hành
+                            </p>
+                        </div>
+                        <button className="btn btn-sm btn-excel" onClick={() => handleExportExcel('summary')}>
+                            <i className="fa-solid fa-file-excel"></i> Xuất Bảng Này Sang Excel
+                        </button>
+                    </div>
+                    <div className="matrix-table-wrap">
+                        <table className="matrix-table">
+                            <thead>
+                                <tr>
+                                    <th>Tháng</th>
+                                    <th>Doanh Thu 2024 (₫)</th>
+                                    <th>Doanh Thu 2025 (₫)</th>
+                                    <th>Doanh Thu 2026 (₫)</th>
+                                    <th>Tăng Trưởng 26 vs 25</th>
+                                    <th>Đêm Phòng (2026)</th>
+                                    <th>Tỷ Lệ Lấp Đầy</th>
+                                    <th>Giá TB ADR (2026)</th>
                                 </tr>
-                            ))}
-                            <tr className="row-total">
-                                <td><strong>TỔNG CỘNG CẢ NĂM</strong></td>
-                                <td>{formatVND(grand24)}</td>
-                                <td>{formatVND(grand25)}</td>
-                                <td><strong>{formatVND(grand26)}</strong></td>
-                                <td><span className="growth-badge-up"><i className="fa-solid fa-arrow-up"></i> +{grandGrowth}%</span></td>
-                                <td>{grandNights26.toLocaleString('vi-VN')} đêm</td>
-                                <td>88.5%</td>
-                                <td>{formatVND(grandADR)}</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {matrixRows.map(row => (
+                                    <tr key={row.month} style={{ opacity: row.isIncluded ? 1 : 0.45 }}>
+                                        <td><strong>Tháng {row.month < 10 ? '0' + row.month : row.month}</strong></td>
+                                        <td>{formatVND(row.t24)}</td>
+                                        <td>{formatVND(row.t25)}</td>
+                                        <td><strong style={{ color: 'var(--gold-dark)' }}>{formatVND(row.t26)}</strong></td>
+                                        <td>
+                                            {row.growth > 0 ? (
+                                                <span className="growth-badge-up"><i className="fa-solid fa-arrow-up"></i> +{row.growth}%</span>
+                                            ) : (
+                                                <span className="growth-badge-neutral">{row.growth}%</span>
+                                            )}
+                                        </td>
+                                        <td>{row.nights} đêm</td>
+                                        <td>{row.occ}%</td>
+                                        <td>{formatVND(row.adr)}</td>
+                                    </tr>
+                                ))}
+                                <tr className="row-total">
+                                    <td><strong>TỔNG CỘNG CẢ NĂM</strong></td>
+                                    <td>{formatVND(grand24)}</td>
+                                    <td>{formatVND(grand25)}</td>
+                                    <td><strong>{formatVND(grand26)}</strong></td>
+                                    <td><span className="growth-badge-up"><i className="fa-solid fa-arrow-up"></i> +{grandGrowth}%</span></td>
+                                    <td>{grandNights26.toLocaleString('vi-VN')} đêm</td>
+                                    <td>88.5%</td>
+                                    <td>{formatVND(grandADR)}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            )}
 
             {/* Quick Room Status KPIs */}
-            <div className="kpi-grid">
-                <div className="kpi-card">
-                    <div className="kpi-info">
-                        <h4>Tổng Số Phòng</h4>
-                        <div className="kpi-val">{totalRooms}</div>
-                        <div className="kpi-sub">Hệ thống phòng lưu trú</div>
-                    </div>
-                    <div className="kpi-icon-box" style={{ background: '#e0f2fe', color: '#0284c7' }}>
-                        <i className="fa-solid fa-building"></i>
-                    </div>
-                </div>
-                <div className="kpi-card">
-                    <div className="kpi-info">
-                        <h4>Phòng Đang Trống</h4>
-                        <div className="kpi-val" style={{ color: 'var(--success)' }}>{availableRooms}</div>
-                        <div className="kpi-sub">{reservedRooms} phòng đang chờ nhận</div>
-                    </div>
-                    <div className="kpi-icon-box" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
-                        <i className="fa-solid fa-door-open"></i>
-                    </div>
-                </div>
-                <div className="kpi-card">
-                    <div className="kpi-info">
-                        <h4>Phòng Đang Thuê</h4>
-                        <div className="kpi-val" style={{ color: 'var(--danger)' }}>{occupiedRooms}</div>
-                        <div className="kpi-sub">Tỷ lệ lấp đầy: {occRate}%</div>
-                    </div>
-                    <div className="kpi-icon-box" style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}>
-                        <i className="fa-solid fa-user-check"></i>
-                    </div>
-                </div>
-                <div className="kpi-card">
-                    <div className="kpi-info">
-                        <h4>Thực Thu Tiền Về</h4>
-                        <div className="kpi-val" style={{ color: 'var(--gold-dark)' }}>
-                            {canViewRev ? formatVND(totalCollected) : 'Được bảo mật'}
+            {(canViewKpi || canViewRev) && (
+                <div className="kpi-grid">
+                    {canViewKpi && (
+                        <>
+                            <div className="kpi-card">
+                                <div className="kpi-info">
+                                    <h4>Tổng Số Phòng</h4>
+                                    <div className="kpi-val">{totalRooms}</div>
+                                    <div className="kpi-sub">Hệ thống phòng lưu trú</div>
+                                </div>
+                                <div className="kpi-icon-box" style={{ background: '#e0f2fe', color: '#0284c7' }}>
+                                    <i className="fa-solid fa-building"></i>
+                                </div>
+                            </div>
+                            <div className="kpi-card">
+                                <div className="kpi-info">
+                                    <h4>Phòng Đang Trống</h4>
+                                    <div className="kpi-val" style={{ color: 'var(--success)' }}>{availableRooms}</div>
+                                    <div className="kpi-sub">{reservedRooms} phòng đang chờ nhận</div>
+                                </div>
+                                <div className="kpi-icon-box" style={{ background: 'var(--success-light)', color: 'var(--success)' }}>
+                                    <i className="fa-solid fa-door-open"></i>
+                                </div>
+                            </div>
+                            <div className="kpi-card">
+                                <div className="kpi-info">
+                                    <h4>Phòng Đang Thuê</h4>
+                                    <div className="kpi-val" style={{ color: 'var(--danger)' }}>{occupiedRooms}</div>
+                                    <div className="kpi-sub">Tỷ lệ lấp đầy: {occRate}%</div>
+                                </div>
+                                <div className="kpi-icon-box" style={{ background: 'var(--danger-light)', color: 'var(--danger)' }}>
+                                    <i className="fa-solid fa-user-check"></i>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                    {canViewRev && (
+                        <div className="kpi-card">
+                            <div className="kpi-info">
+                                <h4>Thực Thu Tiền Về</h4>
+                                <div className="kpi-val" style={{ color: 'var(--gold-dark)' }}>
+                                    {formatVND(totalCollected)}
+                                </div>
+                                <div className="kpi-sub">
+                                    Cọc đang giữ: {formatVND(totalDepositHolding)}
+                                </div>
+                            </div>
+                            <div className="kpi-icon-box" style={{ background: 'var(--gold-light)', color: 'var(--gold-dark)' }}>
+                                <i className="fa-solid fa-sack-dollar"></i>
+                            </div>
                         </div>
-                        <div className="kpi-sub">
-                            {canViewRev ? `Cọc đang giữ: ${formatVND(totalDepositHolding)}` : 'Được bảo mật'}
-                        </div>
-                    </div>
-                    <div className="kpi-icon-box" style={{ background: 'var(--gold-light)', color: 'var(--gold-dark)' }}>
-                        <i className="fa-solid fa-sack-dollar"></i>
-                    </div>
+                    )}
                 </div>
-            </div>
+            )}
 
-            {/* Recent Bookings */}
-            <div className="table-card">
-                <div className="table-header-box">
-                    <h3 className="table-title">Các Đơn Đặt Phòng Mới Nhất & Đối Soát CCCD</h3>
-                    <button className="btn btn-sm btn-blue" onClick={() => onNavigateTab('bookings-management')}>
-                        Xem Tất Cả Đơn Đặt
-                    </button>
+            {/* Recent Bookings - Chỉ hiển thị khi có quyền manage_bookings */}
+            {canManageBookings && (
+                <div className="table-card">
+                    <div className="table-header-box">
+                        <h3 className="table-title">Các Đơn Đặt Phòng Mới Nhất & Đối Soát CCCD</h3>
+                        <button className="btn btn-sm btn-blue" onClick={() => onNavigateTab('bookings-management')}>
+                            Xem Tất Cả Đơn Đặt
+                        </button>
+                    </div>
+                    <div className="data-table-wrap">
+                        <table className="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Mã Đơn</th>
+                                    <th>Khách Hàng (CCCD)</th>
+                                    <th>Phòng</th>
+                                    {canViewRev && <th>Tổng Tiền</th>}
+                                    {canViewRev && <th>Đã Cọc</th>}
+                                    <th>Trạng Thái</th>
+                                    <th>Thao Tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {bookings.slice(0, 5).map(b => {
+                                    const badgeClass = b.status === 'Đã check-in' ? 'badge-occupied' : (b.status === 'Đã hoàn thành' ? 'badge-available' : 'badge-reserved');
+                                    return (
+                                        <tr key={b.id}>
+                                            <td><strong>{b.id}</strong></td>
+                                            <td>{b.customerName} <br /><small style={{ color: 'var(--text-muted)' }}>CCCD: {b.cccd || '---'}</small></td>
+                                            <td>Phòng {b.roomId}</td>
+                                            {canViewRev && <td><strong>{formatVND(b.totalAmount)}</strong></td>}
+                                            {canViewRev && <td><span className="status-badge badge-deposit">{formatVND(b.depositAmount)}</span></td>}
+                                            <td><span className={`status-badge ${badgeClass}`}><span className="status-dot"></span> {b.status}</span></td>
+                                            <td>
+                                                <button className="btn btn-sm btn-outline-gold" onClick={() => onNavigateTab('bookings-management')}>
+                                                    Chi tiết
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div className="data-table-wrap">
-                    <table className="data-table">
-                        <thead>
-                            <tr>
-                                <th>Mã Đơn</th>
-                                <th>Khách Hàng (CCCD)</th>
-                                <th>Phòng</th>
-                                <th>Tổng Tiền</th>
-                                <th>Đã Cọc</th>
-                                <th>Trạng Thái</th>
-                                <th>Thao Tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {bookings.slice(0, 5).map(b => {
-                                const badgeClass = b.status === 'Đã check-in' ? 'badge-occupied' : (b.status === 'Đã hoàn thành' ? 'badge-available' : 'badge-reserved');
-                                return (
-                                    <tr key={b.id}>
-                                        <td><strong>{b.id}</strong></td>
-                                        <td>{b.customerName} <br /><small style={{ color: 'var(--text-muted)' }}>CCCD: {b.cccd || '---'}</small></td>
-                                        <td>Phòng {b.roomId}</td>
-                                        <td><strong>{canViewRev ? formatVND(b.totalAmount) : '***'}</strong></td>
-                                        <td><span className="status-badge badge-deposit">{formatVND(b.depositAmount)}</span></td>
-                                        <td><span className={`status-badge ${badgeClass}`}><span className="status-dot"></span> {b.status}</span></td>
-                                        <td>
-                                            <button className="btn btn-sm btn-outline-gold" onClick={() => onNavigateTab('bookings-management')}>
-                                                Chi tiết
-                                            </button>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+            )}
         </div>
     );
 }
