@@ -1,10 +1,13 @@
+/**
+ * ============================================================================
+ * VIEW: HeroView
+ * ============================================================================
+ * Khối giới thiệu 5 sao và thanh công cụ tìm kiếm phòng
+ */
+
 import React from 'react';
 
-export default function Hero({ searchParams, setSearchParams, onSearch }) {
-    const handleChange = (field, value) => {
-        setSearchParams(prev => ({ ...prev, [field]: value }));
-    };
-
+export default function HeroView({ searchParams, onSearchParamChange, onSearch }) {
     return (
         <section id="home" className="hero">
             <div className="hero-tag">
@@ -21,7 +24,7 @@ export default function Hero({ searchParams, setSearchParams, onSearch }) {
                     <input
                         type="date"
                         value={searchParams.checkIn}
-                        onChange={e => handleChange('checkIn', e.target.value)}
+                        onChange={e => onSearchParamChange('checkIn', e.target.value)}
                     />
                 </div>
                 <div className="input-group">
@@ -29,14 +32,14 @@ export default function Hero({ searchParams, setSearchParams, onSearch }) {
                     <input
                         type="date"
                         value={searchParams.checkOut}
-                        onChange={e => handleChange('checkOut', e.target.value)}
+                        onChange={e => onSearchParamChange('checkOut', e.target.value)}
                     />
                 </div>
                 <div className="input-group">
                     <label><i className="fa-solid fa-bed"></i> Hạng phòng</label>
                     <select
                         value={searchParams.roomType}
-                        onChange={e => handleChange('roomType', e.target.value)}
+                        onChange={e => onSearchParamChange('roomType', e.target.value)}
                     >
                         <option value="ALL">Tất cả hạng phòng</option>
                         <option value="Standard">Standard Deluxe</option>
@@ -49,7 +52,7 @@ export default function Hero({ searchParams, setSearchParams, onSearch }) {
                     <label><i className="fa-solid fa-user-group"></i> Số lượng khách</label>
                     <select
                         value={searchParams.guests}
-                        onChange={e => handleChange('guests', e.target.value)}
+                        onChange={e => onSearchParamChange('guests', e.target.value)}
                     >
                         <option value="1">1 Khách</option>
                         <option value="2">2 Khách (Cặp đôi)</option>

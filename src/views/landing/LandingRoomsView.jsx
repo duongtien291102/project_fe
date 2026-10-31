@@ -1,10 +1,17 @@
-import React from 'react';
-import { formatVND } from '../constants/initialData.js';
+/**
+ * ============================================================================
+ * VIEW: LandingRoomsView
+ * ============================================================================
+ * Bộ lọc danh mục phòng nghỉ và danh sách thẻ phòng khách sạn 5 sao
+ */
 
-export default function LandingRooms({
+import React from 'react';
+import { formatVND } from '../../models/TransactionModel.js';
+
+export default function LandingRoomsView({
     rooms,
     currentFilter,
-    setCurrentFilter,
+    onFilterChange,
     onBookRoom
 }) {
     const filterOptions = [
@@ -34,7 +41,7 @@ export default function LandingRooms({
                     <button
                         key={opt.value}
                         className={`filter-btn ${currentFilter === opt.value ? 'active' : ''}`}
-                        onClick={() => setCurrentFilter(opt.value)}
+                        onClick={() => onFilterChange(opt.value)}
                     >
                         {opt.label}
                     </button>

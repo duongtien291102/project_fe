@@ -1,6 +1,13 @@
+/**
+ * ============================================================================
+ * VIEW: FooterView
+ * ============================================================================
+ * Chân trang hiển thị thông tin thương hiệu, liên kết và chính sách CCCD / VietQR
+ */
+
 import React from 'react';
 
-export default function Footer() {
+export default function FooterView() {
     return (
         <footer className="footer">
             <div className="footer-grid">
@@ -45,7 +52,7 @@ export default function Footer() {
                 </div>
             </div>
             <div className="footer-bottom">
-                &copy; 2026 Grand Hotel & Resorts. Bản quyền thuộc về hệ thống quản lý khách sạn và định danh CCCD toàn diện (React Edition).
+                &copy; 2026 Grand Hotel & Resorts. Bản quyền thuộc về hệ thống quản lý khách sạn và định danh CCCD toàn diện (MVC Architecture).
             </div>
         </footer>
     );

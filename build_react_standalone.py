@@ -1,49 +1,75 @@
 import os
+import re
 
 with open('src/index.css', 'r', encoding='utf-8') as f:
     css_content = f.read()
 
-with open('src/constants/initialData.js', 'r', encoding='utf-8') as f:
-    constants_content = f.read()
-# Remove export keywords for inline script
-constants_inline = constants_content.replace('export const ', 'const ').replace('export function ', 'function ')
-
-def read_comp(path):
-    with open(path, 'r', encoding='utf-8') as f:
+def clean_source(file_path):
+    with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
-    # Strip imports and export default
     lines = content.split('\n')
     filtered = []
     for line in lines:
-        if line.strip().startswith('import '):
+        stripped = line.strip()
+        # Skip import lines
+        if stripped.startswith('import ') or (stripped.startswith('from ') and 'import ' in stripped):
             continue
-        if line.strip().startswith('export default '):
+        # Handle multi-line imports if any
+        if stripped.startswith('} from '):
+            continue
+        # Replace export default function / export default
+        if stripped.startswith('export default function '):
+            line = line.replace('export default function ', 'function ')
+        elif stripped.startswith('export default '):
             line = line.replace('export default ', '')
+        # Replace export const / export function
+        if line.startswith('export const '):
+            line = line.replace('export const ', 'const ')
+        elif line.startswith('export function '):
+            line = line.replace('export function ', 'function ')
         filtered.append(line)
     return '\n'.join(filtered)
 
-toast_comp = read_comp('src/components/ToastContainer.jsx')
-navbar_comp = read_comp('src/components/Navbar.jsx')
-hero_comp = read_comp('src/components/Hero.jsx')
-landing_rooms_comp = read_comp('src/components/LandingRooms.jsx')
-footer_comp = read_comp('src/components/Footer.jsx')
-admin_sidebar_comp = read_comp('src/components/AdminSidebar.jsx')
-admin_topbar_comp = read_comp('src/components/AdminTopbar.jsx')
-dashboard_tab_comp = read_comp('src/components/DashboardTab.jsx')
-rooms_tab_comp = read_comp('src/components/RoomsTab.jsx')
-bookings_tab_comp = read_comp('src/components/BookingsTab.jsx')
-ledger_tab_comp = read_comp('src/components/LedgerTab.jsx')
-staff_tab_comp = read_comp('src/components/StaffTab.jsx')
-permissions_tab_comp = read_comp('src/components/PermissionsTab.jsx')
-modals_comp = read_comp('src/components/Modals.jsx')
-app_comp = read_comp('src/App.jsx')
+# Read Model layer
+models_code = '\n\n'.join([
+    clean_source('src/models/StorageService.js'),
+    clean_source('src/models/RoomModel.js'),
+    clean_source('src/models/BookingModel.js'),
+    clean_source('src/models/UserModel.js'),
+    clean_source('src/models/TransactionModel.js'),
+    clean_source('src/models/RevenueModel.js')
+])
+
+# Read Controller layer
+controller_code = clean_source('src/controllers/useHotelController.js')
+
+# Read View layer
+views_code = '\n\n'.join([
+    clean_source('src/views/common/ToastView.jsx'),
+    clean_source('src/views/landing/NavbarView.jsx'),
+    clean_source('src/views/landing/HeroView.jsx'),
+    clean_source('src/views/landing/LandingRoomsView.jsx'),
+    clean_source('src/views/landing/FooterView.jsx'),
+    clean_source('src/views/admin/AdminSidebarView.jsx'),
+    clean_source('src/views/admin/AdminTopbarView.jsx'),
+    clean_source('src/views/admin/DashboardView.jsx'),
+    clean_source('src/views/admin/RoomsView.jsx'),
+    clean_source('src/views/admin/BookingsView.jsx'),
+    clean_source('src/views/admin/LedgerView.jsx'),
+    clean_source('src/views/admin/StaffView.jsx'),
+    clean_source('src/views/admin/PermissionsView.jsx'),
+    clean_source('src/views/modals/ModalsView.jsx')
+])
+
+# Read Root App View
+app_code = clean_source('src/App.jsx')
 
 react_html_template = f"""<!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grand Hotel & Resorts | Quản Lý Khách Sạn & CCCD (React Edition)</title>
+    <title>Grand Hotel & Resorts | Quản Lý Khách Sạn & CCCD (React MVC Architecture)</title>
     
     <!-- Google Fonts & Font Awesome Icons -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,7 +81,7 @@ react_html_template = f"""<!DOCTYPE html>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-    <!-- React 18, ReactDOM & Babel Standalone (Chạy trực tiếp React không cần cài thư viện qua npm) -->
+    <!-- React 18, ReactDOM & Babel Standalone (Zero-Install: Chạy trực tiếp React MVC không cần cài thư viện npm) -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -68,39 +94,28 @@ react_html_template = f"""<!DOCTYPE html>
     <div id="root"></div>
 
     <script type="text/babel">
+        // React Core Hooks
         const {{ useState, useEffect, useRef, useMemo, useCallback }} = React;
 
-        {constants_inline}
+        // ====================================================================
+        // MODEL LAYER (Dữ liệu, Thực thể & Dịch vụ lưu trữ)
+        // ====================================================================
+        {models_code}
 
-        {toast_comp}
+        // ====================================================================
+        // CONTROLLER LAYER (Bộ điều khiển nghiệp vụ & Điều phối trạng thái)
+        // ====================================================================
+        {controller_code}
 
-        {navbar_comp}
+        // ====================================================================
+        // VIEW LAYER (Giao diện hiển thị người dùng & Quản trị)
+        // ====================================================================
+        {views_code}
 
-        {hero_comp}
-
-        {landing_rooms_comp}
-
-        {footer_comp}
-
-        {admin_sidebar_comp}
-
-        {admin_topbar_comp}
-
-        {dashboard_tab_comp}
-
-        {rooms_tab_comp}
-
-        {bookings_tab_comp}
-
-        {ledger_tab_comp}
-
-        {staff_tab_comp}
-
-        {permissions_tab_comp}
-
-        {modals_comp}
-
-        {app_comp}
+        // ====================================================================
+        // ROOT COMPONENT & MOUNT
+        // ====================================================================
+        {app_code}
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<App />);
@@ -115,4 +130,4 @@ with open('react.html', 'w', encoding='utf-8') as f:
 with open('index.html', 'w', encoding='utf-8') as f:
     f.write(react_html_template)
 
-print("Generated react.html and index.html successfully!")
+print("Generated react.html and index.html successfully with MVC Architecture!")

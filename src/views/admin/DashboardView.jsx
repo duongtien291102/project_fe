@@ -1,7 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { formatVND } from '../constants/initialData.js';
+/**
+ * ============================================================================
+ * VIEW: DashboardView
+ * ============================================================================
+ * Hiển thị Dashboard Doanh Thu 3 Năm, Biểu đồ Chart.js, Bảng ma trận đối soát & Xuất Excel
+ */
 
-export default function DashboardTab({
+import React, { useState, useEffect, useRef } from 'react';
+import { formatVND } from '../../models/TransactionModel.js';
+
+export default function DashboardView({
     rooms,
     bookings,
     transactions,
@@ -61,7 +68,7 @@ export default function DashboardTab({
             monthDep = (d24.depositCollected + d25.depositCollected + d26.depositCollected) * roomTypeMultiplier;
             monthOcc = Math.round((d24.occ + d25.occ + d26.occ) / 3);
         } else {
-            const y = parseInt(yearFilter);
+            const y = parseInt(yearFilter, 10);
             const d = historicalRevenue.monthly.find(x => x.year === y && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
             monthTotal = d.total * roomTypeMultiplier;
             monthRoom = d.roomRevenue * roomTypeMultiplier;
@@ -99,7 +106,7 @@ export default function DashboardTab({
                                         .reduce((sum, b) => sum + (b.depositAmount || 0), 0);
     const occRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
 
-    // Charts Initialization with Chart.js
+    // Charts Initialization
     useEffect(() => {
         if (!window.Chart) return;
 
@@ -354,7 +361,7 @@ export default function DashboardTab({
             XLSX.writeFile(wb, fileName);
             addToast('Xuất Excel Thành Công', `Đã tải xuống bảng tính: ${fileName}`, 'success');
         } else {
-            addToast('Thông báo', 'Đang tải thư viện xuất Excel, vui lòng thử lại sau giây lát.', 'info');
+            addToast('Thông báo', 'Đang nạp thư viện xuất Excel, vui lòng thử lại sau giây lát.', 'info');
         }
     };
 
@@ -396,7 +403,7 @@ export default function DashboardTab({
             <div className="revenue-toolbar-card">
                 <div className="rev-tool-title">
                     <h3><i className="fa-solid fa-chart-line" style={{ color: 'var(--gold-primary)' }}></i> BÁO CÁO DOANH THU & CHỈ SỐ TÀI CHÍNH 3 NĂM (2024 - 2026)</h3>
-                    <p>Hệ thống thống kê lũy kế thời gian thực, đối soát tăng trưởng doanh thu & xuất file Excel phục vụ kiểm toán tài chính (React Edition)</p>
+                    <p>Hệ thống thống kê lũy kế thời gian thực, đối soát tăng trưởng doanh thu & xuất file Excel phục vụ kiểm toán tài chính (MVC Architecture)</p>
                 </div>
                 <div className="rev-filters-wrap">
                     <select

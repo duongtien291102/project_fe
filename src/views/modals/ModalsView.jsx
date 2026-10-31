@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import {
-    DEFAULT_CCCD_FRONT,
-    DEFAULT_CCCD_BACK,
-    HOTEL_BANK_CONFIG,
-    formatVND,
-    generateVietQRUrl
-} from '../constants/initialData.js';
+/**
+ * ============================================================================
+ * VIEW: ModalsView
+ * ============================================================================
+ * Toàn bộ 11 hộp thoại tương tác của hệ thống (Auth, Profile, CCCD, Booking...)
+ */
 
-export default function Modals({
+import React, { useState } from 'react';
+import { DEFAULT_CCCD_FRONT, DEFAULT_CCCD_BACK } from '../../models/BookingModel.js';
+import { HOTEL_BANK_CONFIG, formatVND, generateVietQRUrl } from '../../models/TransactionModel.js';
+
+export default function ModalsView({
     activeModal,
     modalData,
     onCloseModal,
@@ -641,7 +643,6 @@ function BookingModal({ room, currentUser, onClose, onSubmitBooking }) {
     const [depositPercent, setDepositPercent] = useState('50');
     const [paymentMethod, setPaymentMethod] = useState('VietQR');
 
-    // Calculate nights & prices
     let nights = 1;
     if (checkIn && checkOut) {
         const diff = new Date(checkOut) - new Date(checkIn);
@@ -891,7 +892,6 @@ function CheckoutModal({ room, booking, onClose, onFinalizeCheckout }) {
 
     const nights = booking?.nights || 1;
     const roomTotal = room.price * nights;
-    const addonsTotal = booking?.addons?.length ? 300000 * booking.addons.length : 0;
     const minibar = 150000;
     const grandTotal = (booking?.totalAmount ? booking.totalAmount : roomTotal) + minibar;
     const depositPaid = booking?.depositAmount || 0;

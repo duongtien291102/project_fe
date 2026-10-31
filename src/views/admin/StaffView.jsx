@@ -1,6 +1,13 @@
+/**
+ * ============================================================================
+ * VIEW: StaffView
+ * ============================================================================
+ * Danh sách nhân sự, phân gán vai trò và quản lý tài khoản nội bộ
+ */
+
 import React, { useState } from 'react';
 
-export default function StaffTab({
+export default function StaffView({
     staffUsers,
     rolesConfig,
     checkPermission,
@@ -29,7 +36,7 @@ export default function StaffTab({
                     <div>
                         <h3 className="table-title">Danh Sách Nhân Sự & Phân Quyền Vai Trò</h3>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                            Quản lý tài khoản nội bộ, gán vai trò quyền hạn (React Managed)
+                            Quản lý tài khoản nội bộ, gán vai trò quyền hạn (MVC Architecture)
                         </p>
                     </div>
                     <div className="room-filter-bar">

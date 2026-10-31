@@ -1,6 +1,13 @@
+/**
+ * ============================================================================
+ * VIEW: AdminTopbarView
+ * ============================================================================
+ * Thanh công cụ phía trên của trang quản trị: Tiêu đề, chọn nhanh vai trò & đăng xuất
+ */
+
 import React from 'react';
 
-export default function AdminTopbar({
+export default function AdminTopbarView({
     title,
     staffUsers,
     rolesConfig,

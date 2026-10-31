@@ -1,7 +1,14 @@
-import React, { useState } from 'react';
-import { formatVND } from '../constants/initialData.js';
+/**
+ * ============================================================================
+ * VIEW: RoomsView
+ * ============================================================================
+ * Danh sách quản lý phòng, tìm kiếm, lọc trạng thái, check-in, check-out
+ */
 
-export default function RoomsTab({
+import React, { useState } from 'react';
+import { formatVND } from '../../models/TransactionModel.js';
+
+export default function RoomsView({
     rooms,
     checkPermission,
     onOpenNewRoomModal,
@@ -32,7 +39,7 @@ export default function RoomsTab({
                     <div>
                         <h3 className="table-title">Danh Sách Quản Lý Trạng Thái Phòng</h3>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                            Thực hiện Check-in / Trả phòng ngay tại danh sách (React State)
+                            Thực hiện Check-in / Trả phòng ngay tại danh sách (MVC Architecture)
                         </p>
                     </div>
                     <div className="room-filter-bar">

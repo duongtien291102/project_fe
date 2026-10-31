@@ -1,11 +1,17 @@
+/**
+ * ============================================================================
+ * VIEW: AdminSidebarView
+ * ============================================================================
+ * Thanh sidebar điều hướng cho khu vực quản trị Admin
+ */
+
 import React from 'react';
 
-export default function AdminSidebar({
+export default function AdminSidebarView({
     adminTab,
     onTabChange,
     onViewCustomerLanding,
-    onResetDemoData,
-    checkPermission
+    onResetDemoData
 }) {
     const navItems = [
         { id: 'dashboard', label: 'Dashboard Doanh Thu (3 Năm)', icon: 'fa-chart-line', perm: 'view_kpi' },

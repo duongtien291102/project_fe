@@ -1,7 +1,14 @@
-import React from 'react';
-import { formatVND } from '../constants/initialData.js';
+/**
+ * ============================================================================
+ * VIEW: BookingsView
+ * ============================================================================
+ * Danh sách toàn bộ đơn đặt phòng, tiền cọc và nút xem chi tiết ảnh CCCD
+ */
 
-export default function BookingsTab({
+import React from 'react';
+import { formatVND } from '../../models/TransactionModel.js';
+
+export default function BookingsView({
     bookings,
     checkPermission,
     onQuickWalkInBooking,

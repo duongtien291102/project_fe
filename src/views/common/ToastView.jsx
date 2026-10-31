@@ -1,6 +1,13 @@
+/**
+ * ============================================================================
+ * VIEW: ToastView
+ * ============================================================================
+ * Hiển thị danh sách thông báo nổi (Toast alerts)
+ */
+
 import React from 'react';
 
-export default function ToastContainer({ toasts }) {
+export default function ToastView({ toasts }) {
     const iconMap = {
         success: 'fa-circle-check',
         danger: 'fa-triangle-exclamation',

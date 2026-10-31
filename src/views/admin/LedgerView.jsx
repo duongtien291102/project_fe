@@ -1,10 +1,16 @@
-import React, { useState } from 'react';
-import { formatVND } from '../constants/initialData.js';
+/**
+ * ============================================================================
+ * VIEW: LedgerView
+ * ============================================================================
+ * Sổ quỹ thu chi, dòng tiền VietQR / Tiền mặt / Thẻ POS và ghi nhận giao dịch
+ */
 
-export default function LedgerTab({
+import React, { useState } from 'react';
+import { formatVND } from '../../models/TransactionModel.js';
+
+export default function LedgerView({
     transactions,
     bookings,
-    checkPermission,
     onOpenManualTxModal
 }) {
     const [searchVal, setSearchVal] = useState('');

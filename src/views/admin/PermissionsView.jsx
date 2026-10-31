@@ -1,31 +1,20 @@
+/**
+ * ============================================================================
+ * VIEW: PermissionsView
+ * ============================================================================
+ * Ma trận cấu hình phân quyền chi tiết cho từng vai trò chức danh
+ */
+
 import React from 'react';
 
-export default function PermissionsTab({
+export default function PermissionsView({
     rolesConfig,
-    setRolesConfig,
     permissionGroups,
+    onPermissionToggle,
     onOpenNewRoleModal,
     onResetRolesMatrix,
     onSavePermissions
 }) {
-    const handleCheckboxChange = (roleId, permKey) => {
-        setRolesConfig(prev =>
-            prev.map(role => {
-                if (role.id === roleId) {
-                    const currentPerms = role.permissions || {};
-                    return {
-                        ...role,
-                        permissions: {
-                            ...currentPerms,
-                            [permKey]: !currentPerms[permKey]
-                        }
-                    };
-                }
-                return role;
-            })
-        );
-    };
-
     return (
         <div id="permissions-config" className="admin-page-panel active">
             <div className="table-card">
@@ -33,7 +22,7 @@ export default function PermissionsTab({
                     <div>
                         <h3 className="table-title">Ma Trận Cấu Hình Phân Quyền Hệ Thống</h3>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                            Tùy chỉnh phân quyền chi tiết cho từng vai trò chức danh (React State Driven)
+                            Tùy chỉnh phân quyền chi tiết cho từng vai trò chức danh (MVC Architecture)
                         </p>
                     </div>
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -89,7 +78,7 @@ export default function PermissionsTab({
                                                             type="checkbox"
                                                             className="perm-checkbox"
                                                             checked={isChecked}
-                                                            onChange={() => handleCheckboxChange(r.id, perm.key)}
+                                                            onChange={() => onPermissionToggle(r.id, perm.key)}
                                                         />
                                                     </td>
                                                 );

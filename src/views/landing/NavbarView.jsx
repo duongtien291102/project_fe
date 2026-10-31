@@ -1,6 +1,13 @@
+/**
+ * ============================================================================
+ * VIEW: NavbarView
+ * ============================================================================
+ * Thanh điều hướng chính của website, nhận diện tài khoản khách/nhân sự
+ */
+
 import React from 'react';
 
-export default function Navbar({
+export default function NavbarView({
     currentUser,
     onOpenAuthModal,
     onOpenCustomerProfile,
