@@ -33,6 +33,7 @@ import ModalsView from './views/modals/ModalsView.jsx';
 
 export default function App() {
     const ctrl = useHotelController();
+    const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
 
     return (
         <div className="grand-hotel-react-app">
@@ -67,8 +68,15 @@ export default function App() {
             ) : (
                 <div id="admin-view" style={{ display: 'block' }}>
                     <div className="admin-layout">
+                        <div
+                            className={`admin-sidebar-backdrop ${isSidebarOpen ? 'active' : ''}`}
+                            onClick={() => setIsSidebarOpen(false)}
+                        />
+
                         <AdminSidebarView
                             adminTab={ctrl.adminTab}
+                            isSidebarOpen={isSidebarOpen}
+                            onCloseSidebar={() => setIsSidebarOpen(false)}
                             onTabChange={ctrl.handleTabChange}
                             onViewCustomerLanding={() => ctrl.setViewMode('landing')}
                             onResetDemoData={ctrl.handleResetDemoData}
@@ -92,6 +100,7 @@ export default function App() {
                                     );
                                 }}
                                 onLogout={ctrl.handleLogout}
+                                onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
                             />
 
                             <div className="admin-body">

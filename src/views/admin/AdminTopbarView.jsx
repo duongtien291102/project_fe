@@ -15,14 +15,23 @@ export default function AdminTopbarView({
     currentUser,
     onNavigateTab,
     onSwitchActiveStaff,
-    onLogout
+    onLogout,
+    onToggleSidebar
 }) {
     const activeStaff = staffUsers.find(s => s.id === activeStaffId) || staffUsers[0];
     const activeRole = rolesConfig.find(role => role.id === activeStaff?.roleId);
 
     return (
         <header className="admin-topbar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                <button
+                    className="admin-menu-toggle"
+                    onClick={onToggleSidebar}
+                    title="Mở menu quản trị"
+                    aria-label="Toggle menu"
+                >
+                    <i className="fa-solid fa-bars"></i>
+                </button>
                 <h2 className="topbar-title" id="adminHeaderTitle">{title}</h2>
             </div>
 

@@ -10,6 +10,8 @@ import React from 'react';
 
 export default function AdminSidebarView({
     adminTab,
+    isSidebarOpen,
+    onCloseSidebar,
     onTabChange,
     onViewCustomerLanding,
     onResetDemoData,
@@ -48,13 +50,20 @@ export default function AdminSidebarView({
     const canResetSystem = checkPermission ? checkPermission('system_reset') : true;
 
     return (
-        <aside className="admin-sidebar" id="adminSidebar">
+        <aside className={`admin-sidebar ${isSidebarOpen ? 'show-mobile' : ''}`} id="adminSidebar">
             <div className="admin-brand">
                 <i className="fa-solid fa-crown"></i>
                 <div className="admin-brand-info">
                     <h3>GRAND HOTEL</h3>
                     <span>Quản Trị Khách Sạn</span>
                 </div>
+                <button
+                    className="admin-sidebar-close"
+                    onClick={onCloseSidebar}
+                    title="Đóng thanh điều hướng"
+                >
+                    <i className="fa-solid fa-xmark"></i>
+                </button>
             </div>
 
             <ul className="admin-nav">
@@ -64,7 +73,10 @@ export default function AdminSidebarView({
                         <li
                             key={item.id}
                             className={`nav-item ${isActive ? 'active' : ''}`}
-                            onClick={() => onTabChange(item.id)}
+                            onClick={() => {
+                                onTabChange(item.id);
+                                if (onCloseSidebar) onCloseSidebar();
+                            }}
                         >
                             <i className={`fa-solid ${item.icon}`}></i>
                             <span>{item.label}</span>
