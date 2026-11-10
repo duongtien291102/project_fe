@@ -3,7 +3,8 @@
  * MODEL: RevenueModel
  * ============================================================================
  * Thống kê dữ liệu doanh thu lũy kế 3 năm (2024 - 2026), tính toán các chỉ số
- * tài chính quản trị khách sạn: ADR, RevPAR, tỷ lệ lấp đầy Occupancy, tăng trưởng YoY
+ * tài chính quản trị khách sạn: ADR, RevPAR, tỷ lệ lấp đầy Occupancy, tăng trưởng YoY.
+ * Tích hợp tự động với cơ sở dữ liệu MongoDB Atlas (transactions & bookings).
  */
 
 export function generateDefaultHistoricalRevenue() {
@@ -36,7 +37,7 @@ export function generateDefaultHistoricalRevenue() {
         { year: 2025, month: 11, roomRevenue: 300000000, serviceRevenue: 42000000, depositCollected: 115000000, total: 342000000, nights: 145, occ: 65, bookings: 52, adr: 2358000 },
         { year: 2025, month: 12, roomRevenue: 530000000, serviceRevenue: 88000000, depositCollected: 210000000, total: 618000000, nights: 235, occ: 92, bookings: 84, adr: 2629000 },
 
-        // 2026
+        // 2026 (Mặc định trước khi đồng bộ MongoDB)
         { year: 2026, month: 1, roomRevenue: 460000000, serviceRevenue: 75000000, depositCollected: 185000000, total: 535000000, nights: 215, occ: 85, bookings: 78, adr: 2488000 },
         { year: 2026, month: 2, roomRevenue: 530000000, serviceRevenue: 88000000, depositCollected: 210000000, total: 618000000, nights: 240, occ: 92, bookings: 88, adr: 2575000 },
         { year: 2026, month: 3, roomRevenue: 420000000, serviceRevenue: 65000000, depositCollected: 165000000, total: 485000000, nights: 195, occ: 79, bookings: 70, adr: 2487000 },
@@ -51,24 +52,74 @@ export function generateDefaultHistoricalRevenue() {
         { year: 2026, month: 12, roomRevenue: 640000000, serviceRevenue: 112000000, depositCollected: 255000000, total: 752000000, nights: 275, occ: 96, bookings: 98, adr: 2734000 }
     ];
 
-    const sampleTransactions = [
-        { id: 'TX-240108', bookingId: 'BK-2401', date: '08/01/2024 10:15', year: 2024, month: 1, customerName: 'NGUYỄN VĂN THẮNG', cccd: '001088019283', phone: '0912 345 678', roomName: 'Deluxe Ocean View', nights: 3, roomAmount: 5400000, serviceAmount: 450000, depositAmount: 2700000, totalAmount: 5850000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-240214', bookingId: 'BK-2409', date: '14/02/2024 15:30', year: 2024, month: 2, customerName: 'VŨ HOÀNG LONG', cccd: '079093012847', phone: '0988 123 456', roomName: 'Presidential Ocean Villa', nights: 2, roomAmount: 12200000, serviceAmount: 1500000, depositAmount: 6850000, totalAmount: 13700000, method: 'Thẻ tín dụng', status: 'Đã hoàn tất' },
-        { id: 'TX-240502', bookingId: 'BK-2422', date: '02/05/2024 11:20', year: 2024, month: 5, customerName: 'LÊ THỊ HỒNG NHUNG', cccd: '001192008374', phone: '0903 555 777', roomName: 'Premier Family Suite', nights: 4, roomAmount: 11800000, serviceAmount: 900000, depositAmount: 6350000, totalAmount: 12700000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-240715', bookingId: 'BK-2445', date: '15/07/2024 09:40', year: 2024, month: 7, customerName: 'ĐẶNG TUẤN KIỆT', cccd: '036089019284', phone: '0977 888 999', roomName: 'Executive Club Suite', nights: 5, roomAmount: 17500000, serviceAmount: 2100000, depositAmount: 9800000, totalAmount: 19600000, method: 'Thẻ tín dụng', status: 'Đã hoàn tất' },
-        { id: 'TX-241224', bookingId: 'BK-2488', date: '24/12/2024 18:25', year: 2024, month: 12, customerName: 'MICHAEL TRẦN', cccd: 'P89201948', phone: '0909 333 444', roomName: 'Presidential Ocean Villa', nights: 6, roomAmount: 36600000, serviceAmount: 4500000, depositAmount: 20550000, totalAmount: 41100000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-250120', bookingId: 'BK-2503', date: '20/01/2025 14:10', year: 2025, month: 1, customerName: 'PHAN MINH CHÂU', cccd: '001095018273', phone: '0918 222 333', roomName: 'Deluxe Ocean View', nights: 3, roomAmount: 5850000, serviceAmount: 600000, depositAmount: 3225000, totalAmount: 6450000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-250430', bookingId: 'BK-2519', date: '30/04/2025 10:45', year: 2025, month: 4, customerName: 'TRẦN QUỐC TOÀN', cccd: '079088019382', phone: '0933 444 888', roomName: 'Executive Club Suite', nights: 4, roomAmount: 14400000, serviceAmount: 1800000, depositAmount: 8100000, totalAmount: 16200000, method: 'Tiền mặt', status: 'Đã hoàn tất' },
-        { id: 'TX-250618', bookingId: 'BK-2538', date: '18/06/2025 16:30', year: 2025, month: 6, customerName: 'HOÀNG THÙY DƯƠNG', cccd: '001194002938', phone: '0966 777 111', roomName: 'Presidential Ocean Villa', nights: 5, roomAmount: 30500000, serviceAmount: 3200000, depositAmount: 16850000, totalAmount: 33700000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-250722', bookingId: 'BK-2550', date: '22/07/2025 11:15', year: 2025, month: 7, customerName: 'NGÔ BẢO CHÂU', cccd: '025091008472', phone: '0944 666 999', roomName: 'Premier Family Suite', nights: 3, roomAmount: 9300000, serviceAmount: 1100000, depositAmount: 5200000, totalAmount: 10400000, method: 'Thẻ tín dụng', status: 'Đã hoàn tất' },
-        { id: 'TX-251010', bookingId: 'BK-2572', date: '10/10/2025 13:50', year: 2025, month: 10, customerName: 'ĐỖ MỸ LINH', cccd: '001196007462', phone: '0989 333 777', roomName: 'Deluxe Ocean View', nights: 2, roomAmount: 3900000, serviceAmount: 400000, depositAmount: 2150000, totalAmount: 4300000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-251231', bookingId: 'BK-2599', date: '31/12/2025 20:00', year: 2025, month: 12, customerName: 'JONATHAN ĐẶNG', cccd: 'P90283741', phone: '0901 888 222', roomName: 'Presidential Ocean Villa', nights: 4, roomAmount: 24400000, serviceAmount: 3600000, depositAmount: 14000000, totalAmount: 28000000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-260115', bookingId: 'BK-2602', date: '15/01/2026 10:20', year: 2026, month: 1, customerName: 'LÝ THÁI TỔ', cccd: '001090019284', phone: '0912 888 999', roomName: 'Presidential Ocean Villa', nights: 3, roomAmount: 18300000, serviceAmount: 2200000, depositAmount: 10250000, totalAmount: 20500000, method: 'Thẻ tín dụng', status: 'Đã hoàn tất' },
-        { id: 'TX-260428', bookingId: 'BK-2615', date: '28/04/2026 14:15', year: 2026, month: 4, customerName: 'NGUYỄN PHƯƠNG HẰNG', cccd: '079171008273', phone: '0988 555 333', roomName: 'Executive Club Suite', nights: 4, roomAmount: 14800000, serviceAmount: 1600000, depositAmount: 8200000, totalAmount: 16400000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-260610', bookingId: 'BK-2632', date: '10/06/2026 09:30', year: 2026, month: 6, customerName: 'BÙI TIẾN DŨNG', cccd: '038097018374', phone: '0977 444 666', roomName: 'Premier Family Suite', nights: 5, roomAmount: 15500000, serviceAmount: 1800000, depositAmount: 8650000, totalAmount: 17300000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-260718', bookingId: 'BK-2648', date: '18/07/2026 17:00', year: 2026, month: 7, customerName: 'VƯƠNG ĐÌNH HUỆ', cccd: '001065009182', phone: '0903 999 111', roomName: 'Presidential Ocean Villa', nights: 5, roomAmount: 30500000, serviceAmount: 3800000, depositAmount: 17150000, totalAmount: 34300000, method: 'Thẻ tín dụng', status: 'Đã hoàn tất' },
-        { id: 'TX-260902', bookingId: 'BK-2661', date: '02/09/2026 12:10', year: 2026, month: 9, customerName: 'TRỊNH KIM CHI', cccd: '079175002938', phone: '0919 777 555', roomName: 'Deluxe Ocean View', nights: 3, roomAmount: 5850000, serviceAmount: 750000, depositAmount: 3300000, totalAmount: 6600000, method: 'VietQR', status: 'Đã hoàn tất' }
-    ];
+    return { monthly, sampleTransactions: [] };
+}
 
-    return { monthly, sampleTransactions };
+/**
+ * Tính toán số liệu doanh thu năm 2026 trực tiếp từ 110 giao dịch thực tế
+ * đã nạp trong MongoDB Atlas thay vì số liệu mock.
+ */
+export function buildDynamicHistoricalRevenue(transactions = [], bookings = [], rooms = []) {
+    const base = generateDefaultHistoricalRevenue();
+    if (!transactions || transactions.length === 0) {
+        return base;
+    }
+
+    const txs2026 = transactions.filter(t => {
+        if (t.year === 2026) return true;
+        if (t.date && t.date.includes('/2026')) return true;
+        if (t.createdAtInstant && t.createdAtInstant.startsWith('2026')) return true;
+        return false;
+    });
+
+    const updatedMonthly = base.monthly.map(mItem => {
+        if (mItem.year !== 2026) return mItem;
+
+        const m = mItem.month;
+        const monthTxs = txs2026.filter(t => {
+            if (t.month === m) return true;
+            if (t.date && (t.date.includes(`/${String(m).padStart(2, '0')}/2026`) || t.date.includes(`/${m}/2026`))) return true;
+            if (t.createdAtInstant && t.createdAtInstant.startsWith(`2026-${String(m).padStart(2, '0')}`)) return true;
+            return false;
+        });
+
+        if (monthTxs.length === 0) return mItem;
+
+        const totalMonthAmount = monthTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        const depositCollected = monthTxs
+            .filter(t => (t.type && (t.type.toLowerCase().includes('cọc') || t.type.includes('50%'))))
+            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+        const roomRevenue = Math.round(totalMonthAmount * 0.82);
+        const serviceRevenue = totalMonthAmount - roomRevenue;
+
+        const monthBookings = (bookings || []).filter(b => {
+            if (b.checkIn && (b.checkIn.startsWith(`2026-${String(m).padStart(2, '0')}`) || b.checkIn.includes(`/${m}/2026`))) return true;
+            return false;
+        });
+
+        const bookingsCount = monthBookings.length > 0 ? monthBookings.length : monthTxs.length;
+        const nightsCount = monthBookings.reduce((sum, b) => sum + (Number(b.nights) || 1), 0) || Math.max(1, bookingsCount * 2);
+        const totalPossibleRoomNights = (rooms?.length || 12) * 30;
+        const occ = Math.min(100, Math.round((nightsCount / totalPossibleRoomNights) * 100)) || mItem.occ;
+        const adr = nightsCount > 0 ? Math.round(roomRevenue / nightsCount) : mItem.adr;
+
+        return {
+            year: 2026,
+            month: m,
+            roomRevenue,
+            serviceRevenue,
+            depositCollected,
+            total: totalMonthAmount,
+            nights: nightsCount,
+            occ,
+            bookings: bookingsCount,
+            adr
+        };
+    });
+
+    return {
+        monthly: updatedMonthly,
+        sampleTransactions: transactions
+    };
 }

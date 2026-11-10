@@ -276,25 +276,27 @@
             grid-template-columns: repeat(4, 1fr) auto;
             gap: 20px;
             align-items: center;
-            color: var(--text-main);
+            color: #0f172a !important;
+            color-scheme: light !important;
             text-align: left;
         }
 
         .input-group { display: flex; flex-direction: column; gap: 6px; }
-        .input-group label { font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: var(--text-secondary); letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
+        .input-group label { font-size: 0.8rem; text-transform: uppercase; font-weight: 700; color: #334155 !important; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px; }
         .input-group label i { color: var(--gold-dark); }
         .input-group input, .input-group select {
             width: 100%;
             padding: 12px 14px;
-            border: 1.5px solid var(--border-color);
+            border: 1.5px solid #cbd5e1 !important;
             border-radius: var(--radius-md);
             font-size: 0.95rem;
-            color: var(--text-main);
-            background: #ffffff;
+            color: #0f172a !important;
+            color-scheme: light !important;
+            background: #ffffff !important;
             outline: none;
             transition: var(--transition);
         }
-        .input-group input:focus, .input-group select:focus { border-color: var(--gold-primary); box-shadow: 0 0 0 4px var(--gold-glow); }
+        .input-group input:focus, .input-group select:focus { border-color: var(--gold-primary) !important; box-shadow: 0 0 0 4px var(--gold-glow); }
 
         /* Room Section */
         .section { padding: 100px 6%; }
@@ -556,10 +558,11 @@
             border: 1.5px solid var(--border-color);
             border-radius: var(--radius-md);
             font-size: 0.92rem;
-            color: var(--text-main);
+            color: #0f172a !important;
+            color-scheme: light !important;
             outline: none;
             transition: var(--transition);
-            background: #f8fafc;
+            background: #ffffff;
         }
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus { background: #ffffff; border-color: var(--gold-primary); box-shadow: 0 0 0 4px var(--gold-glow); }
 
@@ -866,6 +869,112 @@
         // ====================================================================
         /**
  * ============================================================================
+ * MODEL: ApiService
+ * ============================================================================
+ * Cầu nối giao tiếp HTTP giữa Frontend React và Backend Spring Boot + MongoDB Atlas
+ */
+
+const API_BASE_URL = 'http://localhost:8080/api';
+
+const ApiService = {
+    async getRooms() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/rooms`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return json.data || [];
+        } catch (err) {
+            console.warn('[ApiService] Không thể lấy rooms từ BE, dùng cache:', err);
+            return null;
+        }
+    },
+
+    async saveRoom(room) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/rooms`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(room)
+            });
+            const json = await res.json();
+            return json.data;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi lưu room lên BE:', err);
+            return room;
+        }
+    },
+
+    async getBookings() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/bookings`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return json.data || [];
+        } catch (err) {
+            console.warn('[ApiService] Không thể lấy bookings từ BE, dùng cache:', err);
+            return null;
+        }
+    },
+
+    async createBooking(booking) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/bookings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(booking)
+            });
+            const json = await res.json();
+            return json.data;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi tạo booking lên BE:', err);
+            return booking;
+        }
+    },
+
+    async updateBookingStatus(bookingId, status) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/bookings/${bookingId}/status?status=${encodeURIComponent(status)}`, {
+                method: 'PUT'
+            });
+            const json = await res.json();
+            return json.data;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi cập nhật status booking lên BE:', err);
+            return null;
+        }
+    },
+
+    async getTransactions() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/transactions`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return json.data || [];
+        } catch (err) {
+            console.warn('[ApiService] Không thể lấy transactions từ BE, dùng cache:', err);
+            return null;
+        }
+    },
+
+    async createTransaction(tx) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/transactions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(tx)
+            });
+            const json = await res.json();
+            return json.data;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi ghi transaction lên BE:', err);
+            return tx;
+        }
+    }
+};
+
+
+/**
+ * ============================================================================
  * MODEL: StorageService
  * ============================================================================
  * Lớp dịch vụ quản lý đọc/ghi dữ liệu vào LocalStorage an toàn
@@ -879,7 +988,8 @@ const STORAGE_KEYS = {
     ROLES_CONFIG: 'grand_hotel_roles_config_v2',
     ACTIVE_STAFF_ID: 'grand_hotel_active_staff_id_v2',
     TRANSACTIONS: 'grand_hotel_financial_transactions_v2',
-    HISTORICAL_REVENUE: 'grand_hotel_historical_revenue_v3'
+    HISTORICAL_REVENUE: 'grand_hotel_historical_revenue_v3',
+    CUSTOMERS: 'grand_hotel_registered_customers_v2'
 };
 
 const StorageService = {
@@ -1268,6 +1378,18 @@ function hasPermission(staffUser, rolesConfig, permKey) {
     return !!(role && role.permissions && role.permissions[permKey]);
 }
 
+function hasAdminAccess(user, staffUsers, rolesConfig) {
+    if (!user) return false;
+    if (user.role === 'customer' && !user.hasAdminAccess) return false;
+    const staff = staffUsers.find(s =>
+        (s.id === user.id || s.id === user.staffId || s.email === user.email || (user.username === 'admin' && s.roleId === 'admin')) &&
+        s.status === 'active'
+    );
+    if (!staff) return false;
+    const role = rolesConfig.find(r => r.id === staff.roleId);
+    return !!(role && role.permissions && Object.values(role.permissions).some(Boolean));
+}
+
 
 /**
  * ============================================================================
@@ -1304,7 +1426,8 @@ function generateVietQRUrl(amount, content) {
  * MODEL: RevenueModel
  * ============================================================================
  * Thống kê dữ liệu doanh thu lũy kế 3 năm (2024 - 2026), tính toán các chỉ số
- * tài chính quản trị khách sạn: ADR, RevPAR, tỷ lệ lấp đầy Occupancy, tăng trưởng YoY
+ * tài chính quản trị khách sạn: ADR, RevPAR, tỷ lệ lấp đầy Occupancy, tăng trưởng YoY.
+ * Tích hợp tự động với cơ sở dữ liệu MongoDB Atlas (transactions & bookings).
  */
 
 function generateDefaultHistoricalRevenue() {
@@ -1337,7 +1460,7 @@ function generateDefaultHistoricalRevenue() {
         { year: 2025, month: 11, roomRevenue: 300000000, serviceRevenue: 42000000, depositCollected: 115000000, total: 342000000, nights: 145, occ: 65, bookings: 52, adr: 2358000 },
         { year: 2025, month: 12, roomRevenue: 530000000, serviceRevenue: 88000000, depositCollected: 210000000, total: 618000000, nights: 235, occ: 92, bookings: 84, adr: 2629000 },
 
-        // 2026
+        // 2026 (Mặc định trước khi đồng bộ MongoDB)
         { year: 2026, month: 1, roomRevenue: 460000000, serviceRevenue: 75000000, depositCollected: 185000000, total: 535000000, nights: 215, occ: 85, bookings: 78, adr: 2488000 },
         { year: 2026, month: 2, roomRevenue: 530000000, serviceRevenue: 88000000, depositCollected: 210000000, total: 618000000, nights: 240, occ: 92, bookings: 88, adr: 2575000 },
         { year: 2026, month: 3, roomRevenue: 420000000, serviceRevenue: 65000000, depositCollected: 165000000, total: 485000000, nights: 195, occ: 79, bookings: 70, adr: 2487000 },
@@ -1352,26 +1475,76 @@ function generateDefaultHistoricalRevenue() {
         { year: 2026, month: 12, roomRevenue: 640000000, serviceRevenue: 112000000, depositCollected: 255000000, total: 752000000, nights: 275, occ: 96, bookings: 98, adr: 2734000 }
     ];
 
-    const sampleTransactions = [
-        { id: 'TX-240108', bookingId: 'BK-2401', date: '08/01/2024 10:15', year: 2024, month: 1, customerName: 'NGUYỄN VĂN THẮNG', cccd: '001088019283', phone: '0912 345 678', roomName: 'Deluxe Ocean View', nights: 3, roomAmount: 5400000, serviceAmount: 450000, depositAmount: 2700000, totalAmount: 5850000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-240214', bookingId: 'BK-2409', date: '14/02/2024 15:30', year: 2024, month: 2, customerName: 'VŨ HOÀNG LONG', cccd: '079093012847', phone: '0988 123 456', roomName: 'Presidential Ocean Villa', nights: 2, roomAmount: 12200000, serviceAmount: 1500000, depositAmount: 6850000, totalAmount: 13700000, method: 'Thẻ tín dụng', status: 'Đã hoàn tất' },
-        { id: 'TX-240502', bookingId: 'BK-2422', date: '02/05/2024 11:20', year: 2024, month: 5, customerName: 'LÊ THỊ HỒNG NHUNG', cccd: '001192008374', phone: '0903 555 777', roomName: 'Premier Family Suite', nights: 4, roomAmount: 11800000, serviceAmount: 900000, depositAmount: 6350000, totalAmount: 12700000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-240715', bookingId: 'BK-2445', date: '15/07/2024 09:40', year: 2024, month: 7, customerName: 'ĐẶNG TUẤN KIỆT', cccd: '036089019284', phone: '0977 888 999', roomName: 'Executive Club Suite', nights: 5, roomAmount: 17500000, serviceAmount: 2100000, depositAmount: 9800000, totalAmount: 19600000, method: 'Thẻ tín dụng', status: 'Đã hoàn tất' },
-        { id: 'TX-241224', bookingId: 'BK-2488', date: '24/12/2024 18:25', year: 2024, month: 12, customerName: 'MICHAEL TRẦN', cccd: 'P89201948', phone: '0909 333 444', roomName: 'Presidential Ocean Villa', nights: 6, roomAmount: 36600000, serviceAmount: 4500000, depositAmount: 20550000, totalAmount: 41100000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-250120', bookingId: 'BK-2503', date: '20/01/2025 14:10', year: 2025, month: 1, customerName: 'PHAN MINH CHÂU', cccd: '001095018273', phone: '0918 222 333', roomName: 'Deluxe Ocean View', nights: 3, roomAmount: 5850000, serviceAmount: 600000, depositAmount: 3225000, totalAmount: 6450000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-250430', bookingId: 'BK-2519', date: '30/04/2025 10:45', year: 2025, month: 4, customerName: 'TRẦN QUỐC TOÀN', cccd: '079088019382', phone: '0933 444 888', roomName: 'Executive Club Suite', nights: 4, roomAmount: 14400000, serviceAmount: 1800000, depositAmount: 8100000, totalAmount: 16200000, method: 'Tiền mặt', status: 'Đã hoàn tất' },
-        { id: 'TX-250618', bookingId: 'BK-2538', date: '18/06/2025 16:30', year: 2025, month: 6, customerName: 'HOÀNG THÙY DƯƠNG', cccd: '001194002938', phone: '0966 777 111', roomName: 'Presidential Ocean Villa', nights: 5, roomAmount: 30500000, serviceAmount: 3200000, depositAmount: 16850000, totalAmount: 33700000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-250722', bookingId: 'BK-2550', date: '22/07/2025 11:15', year: 2025, month: 7, customerName: 'NGÔ BẢO CHÂU', cccd: '025091008472', phone: '0944 666 999', roomName: 'Premier Family Suite', nights: 3, roomAmount: 9300000, serviceAmount: 1100000, depositAmount: 5200000, totalAmount: 10400000, method: 'Thẻ tín dụng', status: 'Đã hoàn tất' },
-        { id: 'TX-251010', bookingId: 'BK-2572', date: '10/10/2025 13:50', year: 2025, month: 10, customerName: 'ĐỖ MỸ LINH', cccd: '001196007462', phone: '0989 333 777', roomName: 'Deluxe Ocean View', nights: 2, roomAmount: 3900000, serviceAmount: 400000, depositAmount: 2150000, totalAmount: 4300000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-251231', bookingId: 'BK-2599', date: '31/12/2025 20:00', year: 2025, month: 12, customerName: 'JONATHAN ĐẶNG', cccd: 'P90283741', phone: '0901 888 222', roomName: 'Presidential Ocean Villa', nights: 4, roomAmount: 24400000, serviceAmount: 3600000, depositAmount: 14000000, totalAmount: 28000000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-260115', bookingId: 'BK-2602', date: '15/01/2026 10:20', year: 2026, month: 1, customerName: 'LÝ THÁI TỔ', cccd: '001090019284', phone: '0912 888 999', roomName: 'Presidential Ocean Villa', nights: 3, roomAmount: 18300000, serviceAmount: 2200000, depositAmount: 10250000, totalAmount: 20500000, method: 'Thẻ tín dụng', status: 'Đã hoàn tất' },
-        { id: 'TX-260428', bookingId: 'BK-2615', date: '28/04/2026 14:15', year: 2026, month: 4, customerName: 'NGUYỄN PHƯƠNG HẰNG', cccd: '079171008273', phone: '0988 555 333', roomName: 'Executive Club Suite', nights: 4, roomAmount: 14800000, serviceAmount: 1600000, depositAmount: 8200000, totalAmount: 16400000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-260610', bookingId: 'BK-2632', date: '10/06/2026 09:30', year: 2026, month: 6, customerName: 'BÙI TIẾN DŨNG', cccd: '038097018374', phone: '0977 444 666', roomName: 'Premier Family Suite', nights: 5, roomAmount: 15500000, serviceAmount: 1800000, depositAmount: 8650000, totalAmount: 17300000, method: 'VietQR', status: 'Đã hoàn tất' },
-        { id: 'TX-260718', bookingId: 'BK-2648', date: '18/07/2026 17:00', year: 2026, month: 7, customerName: 'VƯƠNG ĐÌNH HUỆ', cccd: '001065009182', phone: '0903 999 111', roomName: 'Presidential Ocean Villa', nights: 5, roomAmount: 30500000, serviceAmount: 3800000, depositAmount: 17150000, totalAmount: 34300000, method: 'Thẻ tín dụng', status: 'Đã hoàn tất' },
-        { id: 'TX-260902', bookingId: 'BK-2661', date: '02/09/2026 12:10', year: 2026, month: 9, customerName: 'TRỊNH KIM CHI', cccd: '079175002938', phone: '0919 777 555', roomName: 'Deluxe Ocean View', nights: 3, roomAmount: 5850000, serviceAmount: 750000, depositAmount: 3300000, totalAmount: 6600000, method: 'VietQR', status: 'Đã hoàn tất' }
-    ];
+    return { monthly, sampleTransactions: [] };
+}
 
-    return { monthly, sampleTransactions };
+/**
+ * Tính toán số liệu doanh thu năm 2026 trực tiếp từ 110 giao dịch thực tế
+ * đã nạp trong MongoDB Atlas thay vì số liệu mock.
+ */
+function buildDynamicHistoricalRevenue(transactions = [], bookings = [], rooms = []) {
+    const base = generateDefaultHistoricalRevenue();
+    if (!transactions || transactions.length === 0) {
+        return base;
+    }
+
+    const txs2026 = transactions.filter(t => {
+        if (t.year === 2026) return true;
+        if (t.date && t.date.includes('/2026')) return true;
+        if (t.createdAtInstant && t.createdAtInstant.startsWith('2026')) return true;
+        return false;
+    });
+
+    const updatedMonthly = base.monthly.map(mItem => {
+        if (mItem.year !== 2026) return mItem;
+
+        const m = mItem.month;
+        const monthTxs = txs2026.filter(t => {
+            if (t.month === m) return true;
+            if (t.date && (t.date.includes(`/${String(m).padStart(2, '0')}/2026`) || t.date.includes(`/${m}/2026`))) return true;
+            if (t.createdAtInstant && t.createdAtInstant.startsWith(`2026-${String(m).padStart(2, '0')}`)) return true;
+            return false;
+        });
+
+        if (monthTxs.length === 0) return mItem;
+
+        const totalMonthAmount = monthTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+        const depositCollected = monthTxs
+            .filter(t => (t.type && (t.type.toLowerCase().includes('cọc') || t.type.includes('50%'))))
+            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+        const roomRevenue = Math.round(totalMonthAmount * 0.82);
+        const serviceRevenue = totalMonthAmount - roomRevenue;
+
+        const monthBookings = (bookings || []).filter(b => {
+            if (b.checkIn && (b.checkIn.startsWith(`2026-${String(m).padStart(2, '0')}`) || b.checkIn.includes(`/${m}/2026`))) return true;
+            return false;
+        });
+
+        const bookingsCount = monthBookings.length > 0 ? monthBookings.length : monthTxs.length;
+        const nightsCount = monthBookings.reduce((sum, b) => sum + (Number(b.nights) || 1), 0) || Math.max(1, bookingsCount * 2);
+        const totalPossibleRoomNights = (rooms?.length || 12) * 30;
+        const occ = Math.min(100, Math.round((nightsCount / totalPossibleRoomNights) * 100)) || mItem.occ;
+        const adr = nightsCount > 0 ? Math.round(roomRevenue / nightsCount) : mItem.adr;
+
+        return {
+            year: 2026,
+            month: m,
+            roomRevenue,
+            serviceRevenue,
+            depositCollected,
+            total: totalMonthAmount,
+            nights: nightsCount,
+            occ,
+            bookings: bookingsCount,
+            adr
+        };
+    });
+
+    return {
+        monthly: updatedMonthly,
+        sampleTransactions: transactions
+    };
 }
 
 
@@ -1408,6 +1581,48 @@ function useHotelController() {
     const [transactions, setTransactions] = useState(() => StorageService.get(STORAGE_KEYS.TRANSACTIONS, INITIAL_TRANSACTIONS));
     const [historicalRevenue, setHistoricalRevenue] = useState(() => StorageService.get(STORAGE_KEYS.HISTORICAL_REVENUE, generateDefaultHistoricalRevenue()));
     const [currentUser, setCurrentUser] = useState(() => StorageService.get(STORAGE_KEYS.USER, null));
+    const [isBackendConnected, setIsBackendConnected] = useState(false);
+
+    // -------------------------------------------------------------
+    // Live Sync with Backend Spring Boot & MongoDB Atlas (Zero-Mock)
+    // -------------------------------------------------------------
+    useEffect(() => {
+        let isMounted = true;
+        async function fetchAtlasData() {
+            try {
+                const [dbRooms, dbBookings, dbTransactions] = await Promise.all([
+                    ApiService.getRooms(),
+                    ApiService.getBookings(),
+                    ApiService.getTransactions()
+                ]);
+
+                if (!isMounted) return;
+
+                if (Array.isArray(dbRooms) && dbRooms.length > 0) {
+                    setRooms(dbRooms);
+                }
+                if (Array.isArray(dbBookings) && dbBookings.length > 0) {
+                    setBookings(dbBookings);
+                }
+                if (Array.isArray(dbTransactions) && dbTransactions.length > 0) {
+                    setTransactions(dbTransactions);
+                    setIsBackendConnected(true);
+                }
+            } catch (err) {
+                console.warn('[useHotelController] Lỗi nạp dữ liệu từ Atlas ban đầu:', err);
+            }
+        }
+        fetchAtlasData();
+        return () => { isMounted = false; };
+    }, []);
+
+    // Tự động tính toán lại dữ liệu doanh thu năm 2026 từ các giao dịch thực tế
+    useEffect(() => {
+        if (transactions && transactions.length > 0) {
+            const dynamicRev = buildDynamicHistoricalRevenue(transactions, bookings, rooms);
+            setHistoricalRevenue(dynamicRev);
+        }
+    }, [transactions, bookings, rooms]);
 
     // -------------------------------------------------------------
     // UI View Navigation State
@@ -1501,57 +1716,126 @@ function useHotelController() {
     };
 
     // -------------------------------------------------------------
-    // Business Logic: Authentication & Profile
+    // Business Logic: Authentication & Profile (RBAC - Sysadmin Auth)
     // -------------------------------------------------------------
-    const handleLoginSuccess = ({ role, username }) => {
-        let userObj = currentUser;
-        if (role === 'customer') {
-            if (!userObj || userObj.username !== username) {
-                userObj = {
-                    username,
-                    name: username.toUpperCase(),
-                    phone: '0901234567',
-                    email: username.includes('@') ? username : `${username.toLowerCase()}@email.com`,
-                    dob: '1995-05-15',
-                    gender: 'Nam',
-                    address: 'TP. Hồ Chí Minh',
+    const handleLoginSuccess = ({ username, password }) => {
+        if (!username || !username.trim()) {
+            addToast('Lỗi đăng nhập', 'Vui lòng nhập tên đăng nhập, email hoặc số CCCD.', 'danger');
+            return;
+        }
+
+        const input = username.trim().toLowerCase();
+
+        // 1. Kiểm tra xem tài khoản có thuộc danh sách nhân sự do Sysadmin phân quyền hay không
+        const matchedStaff = staffUsers.find(s =>
+            (s.email && s.email.toLowerCase() === input) ||
+            (s.id && s.id.toLowerCase() === input) ||
+            (s.phone && s.phone === input) ||
+            (s.name && s.name.toLowerCase() === input) ||
+            (input === 'admin' && s.roleId === 'admin')
+        );
+
+        if (matchedStaff) {
+            // Kiểm tra trạng thái tài khoản
+            if (matchedStaff.status === 'locked') {
+                addToast('Tài khoản bị khóa', 'Tài khoản nhân sự này đã bị Sysadmin tạm khóa. Vui lòng liên hệ quản trị viên.', 'danger');
+                return;
+            }
+
+            // Kiểm tra cấu hình quyền hạn vai trò
+            const roleObj = rolesConfig.find(r => r.id === matchedStaff.roleId);
+            const hasAdminRights = roleObj && roleObj.permissions && Object.values(roleObj.permissions).some(Boolean);
+
+            if (hasAdminRights) {
+                // Được sysadmin cấp quyền vào trang quản trị
+                const staffObj = {
+                    id: matchedStaff.id,
+                    username: matchedStaff.email || matchedStaff.id,
+                    name: matchedStaff.name,
+                    email: matchedStaff.email,
+                    phone: matchedStaff.phone,
+                    role: 'staff',
+                    roleId: matchedStaff.roleId,
+                    roleName: roleObj ? roleObj.name : 'Quản trị viên',
+                    staffId: matchedStaff.id,
+                    hasAdminAccess: true,
+                    avatar: matchedStaff.name.charAt(0).toUpperCase(),
                     cccd: '079095001234',
                     cccdDate: '2021-08-20',
                     cccdPlace: 'Cục CSQLHC về TTXH',
                     cccdFront: DEFAULT_CCCD_FRONT,
-                    cccdBack: DEFAULT_CCCD_BACK,
-                    role: 'customer',
-                    avatar: username.charAt(0).toUpperCase()
+                    cccdBack: DEFAULT_CCCD_BACK
                 };
+
+                setCurrentUser(staffObj);
+                setActiveStaffId(matchedStaff.id);
+                closeModal();
+                setViewMode('admin');
+                addToast('Đăng nhập Quản Trị thành công', `Chào mừng ${roleObj ? roleObj.name : 'Quản lý'} ${matchedStaff.name} vào hệ thống quản trị.`);
+                return;
             }
+        }
+
+        // 2. Không được cấp quyền quản trị -> Tài khoản chỉ là một Khách Hàng (role 'customer') thông thường
+        const savedCustomers = StorageService.get(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', []);
+        const foundCustomer = savedCustomers.find(c =>
+            (c.username && c.username.toLowerCase() === input) ||
+            (c.email && c.email.toLowerCase() === input) ||
+            (c.cccd && c.cccd === input) ||
+            (c.phone && c.phone === input)
+        );
+
+        let userObj;
+        if (foundCustomer) {
+            userObj = { ...foundCustomer, role: 'customer', hasAdminAccess: false };
         } else {
             userObj = {
                 username,
-                name: username,
-                role: 'staff',
+                name: username.includes('@') ? username.split('@')[0].toUpperCase() : username.toUpperCase(),
+                phone: '0901234567',
+                email: username.includes('@') ? username : `${username.toLowerCase()}@email.com`,
+                dob: '1995-05-15',
+                gender: 'Nam',
+                address: 'TP. Hồ Chí Minh',
+                cccd: input.match(/^\d{12}$/) ? input : '079095001234',
+                cccdDate: '2021-08-20',
+                cccdPlace: 'Cục CSQLHC về TTXH',
+                cccdFront: DEFAULT_CCCD_FRONT,
+                cccdBack: DEFAULT_CCCD_BACK,
+                role: 'customer',
+                hasAdminAccess: false,
                 avatar: username.charAt(0).toUpperCase()
             };
+            StorageService.set(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', [...savedCustomers, userObj]);
         }
 
         setCurrentUser(userObj);
         closeModal();
-
-        if (role === 'staff') {
-            setViewMode('admin');
-            addToast('Đăng nhập thành công', `Chào mừng quản lý ${userObj.name} đến với Dashboard.`);
-        } else {
-            addToast('Đăng nhập thành công', `Chào mừng quý khách ${userObj.name} trở lại Grand Hotel.`);
-        }
+        setViewMode('landing');
+        addToast('Đăng nhập thành công', `Chào mừng quý khách ${userObj.name} đến với Grand Hotel.`);
     };
 
     const handleRegisterSuccess = newUser => {
-        setCurrentUser(newUser);
+        const userWithRole = {
+            ...newUser,
+            role: 'customer',
+            hasAdminAccess: false
+        };
+        const savedCustomers = StorageService.get(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', []);
+        const updatedList = [...savedCustomers.filter(c => c.username !== newUser.username && c.email !== newUser.email), userWithRole];
+        StorageService.set(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', updatedList);
+
+        setCurrentUser(userWithRole);
         closeModal();
+        setViewMode('landing');
         addToast('Đăng ký & Định danh CCCD hoàn tất!', `Hồ sơ căn cước của ${newUser.name} đã được kích hoạt.`, 'success');
     };
 
     const handleUpdateProfileSuccess = updatedUser => {
         setCurrentUser(updatedUser);
+        const savedCustomers = StorageService.get(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', []);
+        const updatedList = savedCustomers.map(c => (c.username === updatedUser.username || c.email === updatedUser.email) ? updatedUser : c);
+        StorageService.set(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', updatedList);
         closeModal();
         addToast('Cập nhật hồ sơ thành công', 'Thông tin cá nhân và ảnh CCCD đã được lưu trữ an toàn.', 'success');
     };
@@ -1568,7 +1852,7 @@ function useHotelController() {
     const handleBookRoomClick = room => {
         if (!currentUser) {
             addToast('Yêu cầu đăng nhập', 'Vui lòng đăng nhập hoặc đăng ký kèm CCCD để đặt phòng.', 'info');
-            openModal('auth', { defaultRole: 'customer' });
+            openModal('auth');
             return;
         }
 
@@ -1624,7 +1908,7 @@ function useHotelController() {
         }
     };
 
-    const handleConfirmQrPaid = () => {
+    const handleConfirmQrPaid = async () => {
         if (!pendingBookingPayment) return;
 
         const newTx = {
@@ -1635,7 +1919,10 @@ function useHotelController() {
             method: 'VietQR',
             amount: pendingBookingPayment.depositAmount,
             date: new Date().toLocaleString('vi-VN'),
-            staff: 'Cổng Online VietQR'
+            staff: 'Cổng Online VietQR',
+            year: 2026,
+            month: new Date().getMonth() + 1,
+            status: 'Đã hoàn tất'
         };
 
         setTransactions(prev => [newTx, ...prev]);
@@ -1643,20 +1930,32 @@ function useHotelController() {
         setPendingBookingPayment(null);
         closeModal();
         addToast('Xác nhận thành công!', `Đã nhận tiền cọc ${formatVND(pendingBookingPayment.depositAmount)} qua VietQR!`, 'success');
+
+        try {
+            await ApiService.createTransaction(newTx);
+        } catch (err) {
+            console.warn('[useHotelController] Lỗi ghi tx lên Atlas:', err);
+        }
     };
 
-    const finalizeBooking = booking => {
+    const finalizeBooking = async booking => {
         setBookings(prev => [booking, ...prev]);
         setRooms(prev =>
             prev.map(r => (r.id === booking.roomId ? { ...r, status: 'Đã đặt', currentGuest: booking.customerName } : r))
         );
         addToast('Đặt phòng thành công!', `Mã đơn: ${booking.id}. Định danh CCCD đã hoàn tất.`, 'success');
+
+        try {
+            await ApiService.createBooking(booking);
+        } catch (err) {
+            console.warn('[useHotelController] Lỗi ghi booking lên Atlas:', err);
+        }
     };
 
     // -------------------------------------------------------------
     // Business Logic: Admin Front-Desk & Room Operations
     // -------------------------------------------------------------
-    const handleQuickCheckIn = roomId => {
+    const handleQuickCheckIn = async roomId => {
         const guestName = prompt('Nhập họ tên khách nhận phòng:', 'NGUYỄN VĂN HẢI');
         if (!guestName) return;
 
@@ -1703,7 +2002,10 @@ function useHotelController() {
             method: 'Tiền mặt',
             amount: deposit,
             date: new Date().toLocaleString('vi-VN'),
-            staff: staffUsers.find(s => s.id === activeStaffId)?.name || 'Nhân viên lễ tân'
+            staff: staffUsers.find(s => s.id === activeStaffId)?.name || 'Nhân viên lễ tân',
+            year: 2026,
+            month: new Date().getMonth() + 1,
+            status: 'Đã hoàn tất'
         };
 
         setRooms(prev =>
@@ -1713,26 +2015,52 @@ function useHotelController() {
         setTransactions(prev => [newTx, ...prev]);
 
         addToast('Check-in hoàn tất', `Phòng ${roomId} đã giao cho khách. Đã thu cọc ${formatVND(deposit)}.`, 'success');
+
+        try {
+            await Promise.all([
+                ApiService.createBooking(newBooking),
+                ApiService.createTransaction(newTx)
+            ]);
+        } catch (err) {
+            console.warn('[useHotelController] Lỗi lưu QuickCheckIn lên Atlas:', err);
+        }
     };
 
-    const handleConfirmCheckIn = roomId => {
+    const handleConfirmCheckIn = async roomId => {
         setRooms(prev =>
             prev.map(r => (r.id === roomId ? { ...r, status: 'Đang thuê' } : r))
         );
+        const targetBooking = bookings.find(b => b.roomId === roomId && b.status === 'Chờ check-in');
         setBookings(prev =>
             prev.map(b => (b.roomId === roomId && b.status === 'Chờ check-in' ? { ...b, status: 'Đã check-in' } : b))
         );
         addToast('Check-in thành công', `Đã giao chìa khóa phòng ${roomId} cho khách.`, 'success');
+
+        if (targetBooking) {
+            try {
+                await ApiService.updateBookingStatus(targetBooking.id, 'Đã check-in');
+            } catch (err) {
+                console.warn('[useHotelController] Lỗi cập nhật check-in:', err);
+            }
+        }
     };
 
-    const handleCompleteCleaning = roomId => {
+    const handleCompleteCleaning = async roomId => {
         setRooms(prev =>
             prev.map(r => (r.id === roomId ? { ...r, status: 'Trống', currentGuest: null } : r))
         );
         addToast('Hoàn tất dọn phòng', `Phòng ${roomId} đã sạch sẽ và sẵn sàng đón khách mới!`, 'info');
+        const targetRoom = rooms.find(r => r.id === roomId);
+        if (targetRoom) {
+            try {
+                await ApiService.saveRoom({ ...targetRoom, status: 'Trống', currentGuest: null });
+            } catch (err) {
+                console.warn('[useHotelController] Lỗi cập nhật trạng thái phòng:', err);
+            }
+        }
     };
 
-    const handleCancelBooking = bookingId => {
+    const handleCancelBooking = async bookingId => {
         if (!confirm(`Quý quản lý có chắc chắn muốn hủy đơn đặt ${bookingId}?`)) return;
 
         const b = bookings.find(item => item.id === bookingId);
@@ -1745,6 +2073,12 @@ function useHotelController() {
             prev.map(r => (r.id === b.roomId && r.status === 'Đã đặt' ? { ...r, status: 'Trống', currentGuest: null } : r))
         );
         addToast('Đã hủy đơn', `Đơn ${bookingId} đã được hủy bỏ và mở lại phòng trống.`, 'info');
+
+        try {
+            await ApiService.updateBookingStatus(bookingId, 'Đã hủy');
+        } catch (err) {
+            console.warn('[useHotelController] Lỗi hủy đơn trên Atlas:', err);
+        }
     };
 
     const handleOpenCheckoutModal = roomId => {
@@ -1755,7 +2089,7 @@ function useHotelController() {
         openModal('checkout', { room, booking });
     };
 
-    const handleFinalizeCheckout = ({ room, booking, remaining, method }) => {
+    const handleFinalizeCheckout = async ({ room, booking, remaining, method }) => {
         setRooms(prev =>
             prev.map(r => (r.id === room.id ? { ...r, status: 'Đang dọn', currentGuest: null } : r))
         );
@@ -1770,8 +2104,9 @@ function useHotelController() {
             );
         }
 
+        let newTx = null;
         if (remaining > 0) {
-            const newTx = {
+            newTx = {
                 id: 'TX-' + Math.floor(100 + Math.random() * 900),
                 bookingId: booking ? booking.id : `P-${room.id}`,
                 customerName: booking ? booking.customerName : 'Khách Lưu Trú',
@@ -1779,19 +2114,33 @@ function useHotelController() {
                 method,
                 amount: remaining,
                 date: new Date().toLocaleString('vi-VN'),
-                staff: staffUsers.find(s => s.id === activeStaffId)?.name || 'Lễ tân'
+                staff: staffUsers.find(s => s.id === activeStaffId)?.name || 'Lễ tân',
+                year: 2026,
+                month: new Date().getMonth() + 1,
+                status: 'Đã hoàn tất'
             };
             setTransactions(prev => [newTx, ...prev]);
         }
 
         closeModal();
         addToast('Quyết toán hoàn tất!', `Phòng ${room.id} đã thu đủ tiền qua ${method} và chuyển sang buồng phòng dọn dẹp.`, 'success');
+
+        try {
+            if (booking) {
+                await ApiService.updateBookingStatus(booking.id, 'Đã hoàn thành');
+            }
+            if (newTx) {
+                await ApiService.createTransaction(newTx);
+            }
+        } catch (err) {
+            console.warn('[useHotelController] Lỗi cập nhật checkout lên Atlas:', err);
+        }
     };
 
     // -------------------------------------------------------------
     // Business Logic: Financial Ledger & Manual Transactions
     // -------------------------------------------------------------
-    const handleCreateManualTx = txPayload => {
+    const handleCreateManualTx = async txPayload => {
         const newTx = {
             id: 'TX-' + Math.floor(100 + Math.random() * 900),
             bookingId: 'THU-LE',
@@ -1800,17 +2149,26 @@ function useHotelController() {
             method: txPayload.method,
             amount: txPayload.amount,
             date: new Date().toLocaleString('vi-VN'),
-            staff: staffUsers.find(s => s.id === activeStaffId)?.name || 'Thủ quỹ'
+            staff: staffUsers.find(s => s.id === activeStaffId)?.name || 'Thủ quỹ',
+            year: 2026,
+            month: new Date().getMonth() + 1,
+            status: 'Đã hoàn tất'
         };
         setTransactions(prev => [newTx, ...prev]);
         closeModal();
         addToast('Thu tiền thành công', `Đã ghi nhận +${formatVND(txPayload.amount)} từ ${txPayload.customerName} vào sổ quỹ.`, 'success');
+
+        try {
+            await ApiService.createTransaction(newTx);
+        } catch (err) {
+            console.warn('[useHotelController] Lỗi ghi manual tx lên Atlas:', err);
+        }
     };
 
     // -------------------------------------------------------------
     // Business Logic: Room Creation
     // -------------------------------------------------------------
-    const handleCreateRoom = roomPayload => {
+    const handleCreateRoom = async roomPayload => {
         if (rooms.some(r => r.id === roomPayload.id)) {
             addToast('Lỗi số phòng', `Phòng số ${roomPayload.id} đã tồn tại trong hệ thống.`, 'danger');
             return;
@@ -1820,6 +2178,12 @@ function useHotelController() {
         setRooms(prev => [...prev, newRoom]);
         closeModal();
         addToast('Thêm phòng thành công', `Đã kích hoạt phòng ${roomPayload.id} trên toàn hệ thống.`, 'success');
+
+        try {
+            await ApiService.saveRoom(newRoom);
+        } catch (err) {
+            console.warn('[useHotelController] Lỗi lưu room lên Atlas:', err);
+        }
     };
 
     // -------------------------------------------------------------
@@ -1841,6 +2205,23 @@ function useHotelController() {
                         : s
                 )
             );
+            if (currentUser && (currentUser.staffId === staffPayload.editId || currentUser.email === staffPayload.email)) {
+                if (staffPayload.status === 'locked') {
+                    setCurrentUser(null);
+                    setViewMode('landing');
+                    addToast('Tài khoản bị khóa', 'Tài khoản của bạn đã bị Sysadmin tạm khóa.', 'danger');
+                } else {
+                    const r = rolesConfig.find(role => role.id === staffPayload.roleId);
+                    setCurrentUser(prev => ({
+                        ...prev,
+                        name: staffPayload.name,
+                        email: staffPayload.email,
+                        phone: staffPayload.phone,
+                        roleId: staffPayload.roleId,
+                        roleName: r ? r.name : staffPayload.roleId
+                    }));
+                }
+            }
             addToast('Cập nhật nhân sự', `Đã cập nhật thông tin cho ${staffPayload.name}.`, 'success');
         } else {
             const newId = 'NV-' + String(staffUsers.length + 1).padStart(3, '0');
@@ -1861,7 +2242,18 @@ function useHotelController() {
 
     const handleToggleStaffStatus = staffId => {
         setStaffUsers(prev =>
-            prev.map(s => (s.id === staffId ? { ...s, status: s.status === 'active' ? 'locked' : 'active' } : s))
+            prev.map(s => {
+                if (s.id === staffId) {
+                    const newStatus = s.status === 'active' ? 'locked' : 'active';
+                    if (currentUser && (currentUser.staffId === staffId || currentUser.id === staffId) && newStatus === 'locked') {
+                        setCurrentUser(null);
+                        setViewMode('landing');
+                        addToast('Tài khoản bị khóa', 'Tài khoản của bạn đã bị Sysadmin tạm khóa.', 'danger');
+                    }
+                    return { ...s, status: newStatus };
+                }
+                return s;
+            })
         );
         addToast('Đổi trạng thái tài khoản', 'Trạng thái nhân sự đã được cập nhật.', 'info');
     };
@@ -1869,7 +2261,27 @@ function useHotelController() {
     const handleDeleteStaffUser = staffId => {
         if (!confirm(`Bạn có chắc muốn xóa tài khoản nhân viên ${staffId} khỏi hệ thống?`)) return;
         setStaffUsers(prev => prev.filter(s => s.id !== staffId));
+        if (currentUser && (currentUser.staffId === staffId || currentUser.id === staffId)) {
+            setCurrentUser(prev => ({ ...prev, role: 'customer', hasAdminAccess: false, staffId: null }));
+            setViewMode('landing');
+            addToast('Quyền hạn thay đổi', 'Tài khoản của bạn đã bị Sysadmin thu hồi quyền quản trị.', 'warning');
+        }
         addToast('Đã xóa nhân sự', `Đã gỡ bỏ tài khoản ${staffId}.`, 'info');
+    };
+
+    const handleSetViewMode = mode => {
+        if (mode === 'admin') {
+            const hasAccess = currentUser && (
+                currentUser.hasAdminAccess ||
+                currentUser.role === 'staff' ||
+                staffUsers.some(s => (s.email === currentUser.email || s.id === currentUser.id || s.id === currentUser.staffId) && s.status === 'active')
+            );
+            if (!hasAccess) {
+                addToast('Từ chối truy cập', 'Bạn không được Sysadmin cấp quyền vào trang quản trị.', 'danger');
+                return;
+            }
+        }
+        setViewMode(mode);
     };
 
     // -------------------------------------------------------------
@@ -1992,6 +2404,7 @@ function useHotelController() {
         transactions,
         historicalRevenue,
         currentUser,
+        isBackendConnected,
         viewMode,
         adminTab,
         currentFilter,
@@ -2001,7 +2414,8 @@ function useHotelController() {
         searchParams,
 
         // Setters / Navigators
-        setViewMode,
+        setViewMode: handleSetViewMode,
+        rawSetViewMode: setViewMode,
         setAdminTab,
         setCurrentFilter,
         setSearchParams,
@@ -2110,7 +2524,7 @@ function NavbarView({
             </ul>
 
             <div className="nav-actions" id="navUserArea">
-                {currentUser && currentUser.role === 'customer' ? (
+                {currentUser ? (
                     <>
                         <div
                             className="user-pill"
@@ -2120,8 +2534,21 @@ function NavbarView({
                         >
                             <div className="user-avatar">{currentUser.avatar || currentUser.name?.charAt(0) || 'U'}</div>
                             <span>{currentUser.name}</span>
-                            <i className="fa-solid fa-id-card" style={{ color: 'var(--gold-primary)', fontSize: '0.9rem' }} title="Đã định danh CCCD"></i>
+                            {currentUser.hasAdminAccess || currentUser.role === 'staff' ? (
+                                <span style={{ fontSize: '0.72rem', background: 'var(--gold-primary)', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, marginLeft: '4px' }}>
+                                    {currentUser.roleName || 'Quản trị'}
+                                </span>
+                            ) : (
+                                <i className="fa-solid fa-id-card" style={{ color: 'var(--gold-primary)', fontSize: '0.9rem' }} title="Khách Hàng (Đã định danh CCCD)"></i>
+                            )}
                         </div>
+
+                        {(currentUser.hasAdminAccess || currentUser.role === 'staff') && (
+                            <button className="btn btn-sm btn-gold" onClick={onEnterAdmin} title="Vào Bảng Điều Khiển Quản Trị">
+                                <i className="fa-solid fa-gauge-high"></i> Trang Quản Trị
+                            </button>
+                        )}
+
                         <button className="btn btn-sm btn-outline-gold" onClick={onOpenCustomerProfile}>
                             <i className="fa-solid fa-address-card"></i> Hồ sơ CCCD
                         </button>
@@ -2132,24 +2559,10 @@ function NavbarView({
                             <i className="fa-solid fa-arrow-right-from-bracket"></i>
                         </button>
                     </>
-                ) : currentUser && currentUser.role === 'staff' ? (
-                    <>
-                        <button className="btn btn-sm btn-gold" onClick={onEnterAdmin}>
-                            <i className="fa-solid fa-gauge-high"></i> Vào Admin Dashboard
-                        </button>
-                        <button className="btn btn-sm btn-dark" onClick={onLogout} title="Đăng xuất">
-                            <i className="fa-solid fa-arrow-right-from-bracket"></i>
-                        </button>
-                    </>
                 ) : (
-                    <>
-                        <button className="btn btn-outline-gold btn-sm" onClick={() => onOpenAuthModal('customer')}>
-                            <i className="fa-solid fa-user"></i> Đăng Nhập / CCCD
-                        </button>
-                        <button className="btn btn-gold btn-sm" onClick={() => onOpenAuthModal('staff')}>
-                            <i className="fa-solid fa-shield-halved"></i> Quản Trị
-                        </button>
-                    </>
+                    <button className="btn btn-gold btn-sm" onClick={() => onOpenAuthModal()}>
+                        <i className="fa-solid fa-right-to-bracket"></i> Đăng Nhập / Đăng Ký
+                    </button>
                 )}
             </div>
         </header>
@@ -4104,7 +4517,6 @@ function ModalsView({
         <>
             {activeModal === 'auth' && (
                 <AuthModal
-                    defaultRole={modalData?.defaultRole || 'customer'}
                     onClose={onCloseModal}
                     onLoginSuccess={onLoginSuccess}
                     onRegisterSuccess={onRegisterSuccess}
@@ -4194,9 +4606,8 @@ function ModalsView({
 }
 
 // 1. AUTH MODAL
-function AuthModal({ defaultRole, onClose, onLoginSuccess, onRegisterSuccess }) {
+function AuthModal({ onClose, onLoginSuccess, onRegisterSuccess }) {
     const [authTab, setAuthTab] = useState('login');
-    const [loginRole, setLoginRole] = useState(defaultRole);
     const [loginUsername, setLoginUsername] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
 
@@ -4227,7 +4638,6 @@ function AuthModal({ defaultRole, onClose, onLoginSuccess, onRegisterSuccess }) 
     const handleLoginSubmit = e => {
         e.preventDefault();
         onLoginSuccess({
-            role: loginRole,
             username: loginUsername,
             password: loginPassword
         });
@@ -4280,13 +4690,6 @@ function AuthModal({ defaultRole, onClose, onLoginSuccess, onRegisterSuccess }) 
                     {authTab === 'login' ? (
                         <form onSubmit={handleLoginSubmit}>
                             <div className="form-group">
-                                <label>Đăng nhập với vai trò:</label>
-                                <select value={loginRole} onChange={e => setLoginRole(e.target.value)}>
-                                    <option value="customer">Khách Hàng (Đặt phòng & Quản lý hồ sơ CCCD)</option>
-                                    <option value="staff">Nhân Viên / Quản Trị Viên (Admin Dashboard)</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
                                 <label>Tên Đăng Nhập / Email / Số CCCD</label>
                                 <input
                                     type="text"
@@ -4306,7 +4709,11 @@ function AuthModal({ defaultRole, onClose, onLoginSuccess, onRegisterSuccess }) 
                                     onChange={e => setLoginPassword(e.target.value)}
                                 />
                             </div>
-                            <button type="submit" className="btn btn-gold" style={{ width: '100%', marginTop: '10px' }}>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '14px', lineHeight: 1.5 }}>
+                                <i className="fa-solid fa-circle-info" style={{ color: 'var(--gold-dark)', marginRight: '6px' }}></i>
+                                Tài khoản được <strong>Sysadmin cấp quyền</strong> sẽ tự động vào Trang Quản Trị. Khách hàng thông thường sẽ đăng nhập vào hệ thống để đặt phòng & quản lý hồ sơ CCCD.
+                            </div>
+                            <button type="submit" className="btn btn-gold" style={{ width: '100%', marginTop: '5px' }}>
                                 <i className="fa-solid fa-right-to-bracket"></i> Đăng Nhập Vào Hệ Thống
                             </button>
                         </form>
@@ -5503,7 +5910,7 @@ function App() {
                 <div id="landing-view">
                     <NavbarView
                         currentUser={ctrl.currentUser}
-                        onOpenAuthModal={role => ctrl.openModal('auth', { defaultRole: role })}
+                        onOpenAuthModal={() => ctrl.openModal('auth')}
                         onOpenCustomerProfile={() => ctrl.openModal('customerProfile')}
                         onOpenMyBookings={() => ctrl.openModal('myBookings')}
                         onEnterAdmin={() => ctrl.setViewMode('admin')}

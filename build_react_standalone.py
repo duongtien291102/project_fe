@@ -32,6 +32,7 @@ def clean_source(file_path):
 
 # Read Model layer
 models_code = '\n\n'.join([
+    clean_source('src/models/ApiService.js'),
     clean_source('src/models/StorageService.js'),
     clean_source('src/models/RoomModel.js'),
     clean_source('src/models/BookingModel.js'),

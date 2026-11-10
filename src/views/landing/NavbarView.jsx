@@ -32,7 +32,7 @@ export default function NavbarView({
             </ul>
 
             <div className="nav-actions" id="navUserArea">
-                {currentUser && currentUser.role === 'customer' ? (
+                {currentUser ? (
                     <>
                         <div
                             className="user-pill"
@@ -42,8 +42,21 @@ export default function NavbarView({
                         >
                             <div className="user-avatar">{currentUser.avatar || currentUser.name?.charAt(0) || 'U'}</div>
                             <span>{currentUser.name}</span>
-                            <i className="fa-solid fa-id-card" style={{ color: 'var(--gold-primary)', fontSize: '0.9rem' }} title="Đã định danh CCCD"></i>
+                            {currentUser.hasAdminAccess || currentUser.role === 'staff' ? (
+                                <span style={{ fontSize: '0.72rem', background: 'var(--gold-primary)', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, marginLeft: '4px' }}>
+                                    {currentUser.roleName || 'Quản trị'}
+                                </span>
+                            ) : (
+                                <i className="fa-solid fa-id-card" style={{ color: 'var(--gold-primary)', fontSize: '0.9rem' }} title="Khách Hàng (Đã định danh CCCD)"></i>
+                            )}
                         </div>
+
+                        {(currentUser.hasAdminAccess || currentUser.role === 'staff') && (
+                            <button className="btn btn-sm btn-gold" onClick={onEnterAdmin} title="Vào Bảng Điều Khiển Quản Trị">
+                                <i className="fa-solid fa-gauge-high"></i> Trang Quản Trị
+                            </button>
+                        )}
+
                         <button className="btn btn-sm btn-outline-gold" onClick={onOpenCustomerProfile}>
                             <i className="fa-solid fa-address-card"></i> Hồ sơ CCCD
                         </button>
@@ -54,24 +67,10 @@ export default function NavbarView({
                             <i className="fa-solid fa-arrow-right-from-bracket"></i>
                         </button>
                     </>
-                ) : currentUser && currentUser.role === 'staff' ? (
-                    <>
-                        <button className="btn btn-sm btn-gold" onClick={onEnterAdmin}>
-                            <i className="fa-solid fa-gauge-high"></i> Vào Admin Dashboard
-                        </button>
-                        <button className="btn btn-sm btn-dark" onClick={onLogout} title="Đăng xuất">
-                            <i className="fa-solid fa-arrow-right-from-bracket"></i>
-                        </button>
-                    </>
                 ) : (
-                    <>
-                        <button className="btn btn-outline-gold btn-sm" onClick={() => onOpenAuthModal('customer')}>
-                            <i className="fa-solid fa-user"></i> Đăng Nhập / CCCD
-                        </button>
-                        <button className="btn btn-gold btn-sm" onClick={() => onOpenAuthModal('staff')}>
-                            <i className="fa-solid fa-shield-halved"></i> Quản Trị
-                        </button>
-                    </>
+                    <button className="btn btn-gold btn-sm" onClick={() => onOpenAuthModal()}>
+                        <i className="fa-solid fa-right-to-bracket"></i> Đăng Nhập / Đăng Ký
+                    </button>
                 )}
             </div>
         </header>

@@ -4,7 +4,7 @@
  * ============================================================================
  * Chạy trực tiếp bằng lệnh `npm run dev` mà KHÔNG cần cài thêm thư viện ngoài (vite/webpack).
  * Tự động đóng gói kiến trúc MVC từ `src/` sang `index.html` & `react.html`,
- * theo dõi thay đổi file (File Watcher) và khởi chạy máy chủ tại http://localhost:5173
+ * theo dõi thay đổi file (File Watcher) và khởi chạy máy chủ tại http://localhost:5555
  */
 
 import http from 'node:http';
@@ -50,6 +50,7 @@ export function buildStandalone() {
         .replace(/<\/?style>/gi, '');
 
     const modelsCode = [
+        cleanSource('src/models/ApiService.js'),
         cleanSource('src/models/StorageService.js'),
         cleanSource('src/models/RoomModel.js'),
         cleanSource('src/models/BookingModel.js'),
@@ -230,4 +231,5 @@ function startServer(port) {
     });
 }
 
-startServer(5173);
+const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 5555;
+startServer(DEFAULT_PORT);

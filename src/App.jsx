@@ -42,7 +42,7 @@ export default function App() {
                 <div id="landing-view">
                     <NavbarView
                         currentUser={ctrl.currentUser}
-                        onOpenAuthModal={role => ctrl.openModal('auth', { defaultRole: role })}
+                        onOpenAuthModal={() => ctrl.openModal('auth')}
                         onOpenCustomerProfile={() => ctrl.openModal('customerProfile')}
                         onOpenMyBookings={() => ctrl.openModal('myBookings')}
                         onEnterAdmin={() => ctrl.setViewMode('admin')}

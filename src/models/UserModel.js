@@ -122,3 +122,15 @@ export function hasPermission(staffUser, rolesConfig, permKey) {
     const role = rolesConfig.find(r => r.id === staffUser.roleId);
     return !!(role && role.permissions && role.permissions[permKey]);
 }
+
+export function hasAdminAccess(user, staffUsers, rolesConfig) {
+    if (!user) return false;
+    if (user.role === 'customer' && !user.hasAdminAccess) return false;
+    const staff = staffUsers.find(s =>
+        (s.id === user.id || s.id === user.staffId || s.email === user.email || (user.username === 'admin' && s.roleId === 'admin')) &&
+        s.status === 'active'
+    );
+    if (!staff) return false;
+    const role = rolesConfig.find(r => r.id === staff.roleId);
+    return !!(role && role.permissions && Object.values(role.permissions).some(Boolean));
+}

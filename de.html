@@ -1515,13 +1515,6 @@
                 <!-- Form Đăng Nhập -->
                 <form id="loginForm" onsubmit="handleAuthLogin(event)">
                     <div class="form-group">
-                        <label>Đăng nhập với vai trò:</label>
-                        <select id="authRole">
-                            <option value="customer">Khách Hàng (Đặt phòng & Quản lý hồ sơ CCCD)</option>
-                            <option value="staff">Nhân Viên / Quản Trị Viên (Admin Dashboard)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
                         <label>Tên Đăng Nhập / Email / Số CCCD</label>
                         <input type="text" id="authUsername" placeholder="Nhập tên đăng nhập, email hoặc số CCCD" required>
                     </div>
@@ -1529,7 +1522,11 @@
                         <label>Mật Khẩu</label>
                         <input type="password" id="authPassword" placeholder="Nhập mật khẩu" required>
                     </div>
-                    <button type="submit" class="btn btn-gold" style="width: 100%; margin-top: 10px;">
+                    <div style="font-size: 0.82rem; color: var(--text-secondary); background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 14px; line-height: 1.5;">
+                        <i class="fa-solid fa-circle-info" style="color: var(--gold-dark); margin-right: 6px;"></i>
+                        Tài khoản được <strong>Sysadmin cấp quyền</strong> sẽ tự động vào Trang Quản Trị. Khách hàng thông thường sẽ đăng nhập để đặt phòng & quản lý hồ sơ CCCD.
+                    </div>
+                    <button type="submit" class="btn btn-gold" style="width: 100%; margin-top: 5px;">
                         <i class="fa-solid fa-right-to-bracket"></i> Đăng Nhập Vào Hệ Thống
                     </button>
                 </form>
@@ -2723,8 +2720,7 @@
         }
 
         /* ================= AUTHENTICATION & ĐĂNG KÝ CCCD ================= */
-        function openAuthModal(defaultRole = 'customer') {
-            document.getElementById('authRole').value = defaultRole;
+        function openAuthModal() {
             switchAuthTab('login');
             document.getElementById('authModal').style.display = 'flex';
         }
@@ -2754,50 +2750,76 @@
 
         function handleAuthLogin(e) {
             e.preventDefault();
-            const role = document.getElementById('authRole').value;
             const username = document.getElementById('authUsername').value.trim();
+            if (!username) return;
 
-            let currentUser = getCurrentUser();
+            const input = username.toLowerCase();
+            const staffList = getStaffUsers();
+            const rolesList = getRolesConfig ? getRolesConfig() : [];
 
-            // Nếu người dùng đăng nhập tài khoản khách
-            if (role === 'customer') {
-                if (!currentUser || currentUser.username !== username) {
-                    currentUser = {
-                        username: username,
-                        name: username.toUpperCase(),
-                        phone: '0901234567',
-                        email: username.includes('@') ? username : `${username.toLowerCase()}@email.com`,
-                        dob: '1995-05-15',
-                        gender: 'Nam',
-                        address: 'TP. Hồ Chí Minh',
-                        cccd: '079095001234',
-                        cccdDate: '2021-08-20',
-                        cccdPlace: 'Cục CSQLHC về TTXH',
-                        cccdFront: DEFAULT_CCCD_FRONT,
-                        cccdBack: DEFAULT_CCCD_BACK,
-                        role: 'customer',
-                        avatar: username.charAt(0).toUpperCase()
-                    };
+            // 1. Kiểm tra quyền nhân sự / quản trị từ Sysadmin
+            const matchedStaff = staffList.find(s => 
+                (s.email && s.email.toLowerCase() === input) ||
+                (s.id && s.id.toLowerCase() === input) ||
+                (s.phone && s.phone === input) ||
+                (s.name && s.name.toLowerCase() === input) ||
+                (input === 'admin' && s.roleId === 'admin')
+            );
+
+            if (matchedStaff) {
+                if (matchedStaff.status === 'locked') {
+                    showToast('Tài khoản bị khóa', 'Tài khoản nhân sự này đã bị Sysadmin tạm khóa.', 'danger');
+                    return;
                 }
-            } else {
-                currentUser = {
-                    username: username,
-                    name: username,
-                    role: 'staff',
-                    avatar: username.charAt(0).toUpperCase()
-                };
+                const roleObj = rolesList.find(r => r.id === matchedStaff.roleId);
+                const hasAdminRights = roleObj && roleObj.permissions && Object.values(roleObj.permissions).some(Boolean);
+
+                if (hasAdminRights) {
+                    const currentUser = {
+                        id: matchedStaff.id,
+                        username: matchedStaff.email || matchedStaff.id,
+                        name: matchedStaff.name,
+                        email: matchedStaff.email,
+                        phone: matchedStaff.phone,
+                        role: 'staff',
+                        roleId: matchedStaff.roleId,
+                        roleName: roleObj ? roleObj.name : 'Quản trị viên',
+                        staffId: matchedStaff.id,
+                        hasAdminAccess: true,
+                        avatar: matchedStaff.name.charAt(0).toUpperCase()
+                    };
+                    setCurrentUser(currentUser);
+                    if (typeof setActiveStaffId === 'function') setActiveStaffId(matchedStaff.id);
+                    closeAuthModal();
+                    showToast('Đăng nhập thành công', `Chào mừng ${roleObj ? roleObj.name : 'Quản lý'} ${currentUser.name} đến với Dashboard.`);
+                    renderAdminView();
+                    return;
+                }
             }
+
+            // 2. Không có quyền quản trị -> Là khách hàng role 'customer' bình thường
+            let currentUser = {
+                username: username,
+                name: username.includes('@') ? username.split('@')[0].toUpperCase() : username.toUpperCase(),
+                phone: '0901234567',
+                email: username.includes('@') ? username : `${username.toLowerCase()}@email.com`,
+                dob: '1995-05-15',
+                gender: 'Nam',
+                address: 'TP. Hồ Chí Minh',
+                cccd: input.match(/^\d{12}$/) ? input : '079095001234',
+                cccdDate: '2021-08-20',
+                cccdPlace: 'Cục CSQLHC về TTXH',
+                cccdFront: DEFAULT_CCCD_FRONT,
+                cccdBack: DEFAULT_CCCD_BACK,
+                role: 'customer',
+                hasAdminAccess: false,
+                avatar: username.charAt(0).toUpperCase()
+            };
 
             setCurrentUser(currentUser);
             closeAuthModal();
-
-            if (role === 'staff') {
-                showToast('Đăng nhập thành công', `Chào mừng quản lý ${currentUser.name} đến với Dashboard.`);
-                renderAdminView();
-            } else {
-                showToast('Đăng nhập thành công', `Chào mừng quý khách ${currentUser.name} trở lại Grand Hotel.`);
-                renderLandingAuthArea();
-            }
+            showToast('Đăng nhập thành công', `Chào mừng quý khách ${currentUser.name} trở lại Grand Hotel.`);
+            renderLandingAuthArea();
         }
 
         function handleAuthRegister(e) {
@@ -2958,22 +2980,30 @@
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     </button>
                 `;
-            } else if (user && user.role === 'staff') {
+            } else if (user && (user.hasAdminAccess || user.role === 'staff')) {
                 container.innerHTML = `
-                    <button class="btn btn-sm btn-gold" onclick="renderAdminView()">
-                        <i class="fa-solid fa-gauge-high"></i> Vào Admin Dashboard
+                    <div class="user-pill" onclick="openCustomerProfileModal()" title="Xem và cập nhật CCCD" style="cursor: pointer;">
+                        <div class="user-avatar">${user.avatar || user.name.charAt(0)}</div>
+                        <span>${user.name}</span>
+                        <span style="font-size: 0.72rem; background: var(--gold-primary); color: #000; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: 4px;">${user.roleName || 'Quản trị'}</span>
+                    </div>
+                    <button class="btn btn-sm btn-gold" onclick="renderAdminView()" title="Vào Bảng Điều Khiển Quản Trị">
+                        <i class="fa-solid fa-gauge-high"></i> Trang Quản Trị
                     </button>
-                    <button class="btn btn-sm btn-dark" onclick="logout()">
+                    <button class="btn btn-sm btn-outline-gold" onclick="openCustomerProfileModal()">
+                        <i class="fa-solid fa-address-card"></i> Hồ sơ CCCD
+                    </button>
+                    <button class="btn btn-sm btn-outline-gold" onclick="openMyBookingsModal()">
+                        <i class="fa-solid fa-list-check"></i> Đơn của tôi
+                    </button>
+                    <button class="btn btn-sm btn-dark" onclick="logout()" title="Đăng xuất">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     </button>
                 `;
             } else {
                 container.innerHTML = `
-                    <button class="btn btn-outline-gold btn-sm" onclick="openAuthModal('customer')">
-                        <i class="fa-solid fa-user"></i> Đăng Nhập / CCCD
-                    </button>
-                    <button class="btn btn-gold btn-sm" onclick="openAuthModal('staff')">
-                        <i class="fa-solid fa-shield-halved"></i> Quản Trị
+                    <button class="btn btn-gold btn-sm" onclick="openAuthModal()">
+                        <i class="fa-solid fa-right-to-bracket"></i> Đăng Nhập / Đăng Ký
                     </button>
                 `;
             }
@@ -2987,8 +3017,12 @@
 
         function renderAdminView() {
             const user = getCurrentUser();
-            if (!user || user.role !== 'staff') {
-                openAuthModal('staff');
+            if (!user) {
+                openAuthModal();
+                return;
+            }
+            if (!user.hasAdminAccess && user.role !== 'staff') {
+                showToast('Từ chối truy cập', 'Bạn không được Sysadmin cấp quyền vào trang quản trị.', 'danger');
                 return;
             }
 

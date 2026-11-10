@@ -34,7 +34,6 @@ export default function ModalsView({
         <>
             {activeModal === 'auth' && (
                 <AuthModal
-                    defaultRole={modalData?.defaultRole || 'customer'}
                     onClose={onCloseModal}
                     onLoginSuccess={onLoginSuccess}
                     onRegisterSuccess={onRegisterSuccess}
@@ -124,9 +123,8 @@ export default function ModalsView({
 }
 
 // 1. AUTH MODAL
-function AuthModal({ defaultRole, onClose, onLoginSuccess, onRegisterSuccess }) {
+function AuthModal({ onClose, onLoginSuccess, onRegisterSuccess }) {
     const [authTab, setAuthTab] = useState('login');
-    const [loginRole, setLoginRole] = useState(defaultRole);
     const [loginUsername, setLoginUsername] = useState('');
     const [loginPassword, setLoginPassword] = useState('');
 
@@ -157,7 +155,6 @@ function AuthModal({ defaultRole, onClose, onLoginSuccess, onRegisterSuccess }) 
     const handleLoginSubmit = e => {
         e.preventDefault();
         onLoginSuccess({
-            role: loginRole,
             username: loginUsername,
             password: loginPassword
         });
@@ -210,13 +207,6 @@ function AuthModal({ defaultRole, onClose, onLoginSuccess, onRegisterSuccess }) 
                     {authTab === 'login' ? (
                         <form onSubmit={handleLoginSubmit}>
                             <div className="form-group">
-                                <label>Đăng nhập với vai trò:</label>
-                                <select value={loginRole} onChange={e => setLoginRole(e.target.value)}>
-                                    <option value="customer">Khách Hàng (Đặt phòng & Quản lý hồ sơ CCCD)</option>
-                                    <option value="staff">Nhân Viên / Quản Trị Viên (Admin Dashboard)</option>
-                                </select>
-                            </div>
-                            <div className="form-group">
                                 <label>Tên Đăng Nhập / Email / Số CCCD</label>
                                 <input
                                     type="text"
@@ -236,7 +226,11 @@ function AuthModal({ defaultRole, onClose, onLoginSuccess, onRegisterSuccess }) 
                                     onChange={e => setLoginPassword(e.target.value)}
                                 />
                             </div>
-                            <button type="submit" className="btn btn-gold" style={{ width: '100%', marginTop: '10px' }}>
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '14px', lineHeight: 1.5 }}>
+                                <i className="fa-solid fa-circle-info" style={{ color: 'var(--gold-dark)', marginRight: '6px' }}></i>
+                                Tài khoản được <strong>Sysadmin cấp quyền</strong> sẽ tự động vào Trang Quản Trị. Khách hàng thông thường sẽ đăng nhập vào hệ thống để đặt phòng & quản lý hồ sơ CCCD.
+                            </div>
+                            <button type="submit" className="btn btn-gold" style={{ width: '100%', marginTop: '5px' }}>
                                 <i className="fa-solid fa-right-to-bracket"></i> Đăng Nhập Vào Hệ Thống
                             </button>
                         </form>

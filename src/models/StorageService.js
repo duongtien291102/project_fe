@@ -13,7 +13,8 @@ export const STORAGE_KEYS = {
     ROLES_CONFIG: 'grand_hotel_roles_config_v2',
     ACTIVE_STAFF_ID: 'grand_hotel_active_staff_id_v2',
     TRANSACTIONS: 'grand_hotel_financial_transactions_v2',
-    HISTORICAL_REVENUE: 'grand_hotel_historical_revenue_v3'
+    HISTORICAL_REVENUE: 'grand_hotel_historical_revenue_v3',
+    CUSTOMERS: 'grand_hotel_registered_customers_v2'
 };
 
 export const StorageService = {
