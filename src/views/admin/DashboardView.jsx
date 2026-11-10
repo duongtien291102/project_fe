@@ -38,15 +38,6 @@ export default function DashboardView({
     else if (periodFilter === 'Q3') targetMonths = [7, 8, 9];
     else if (periodFilter === 'Q4') targetMonths = [10, 11, 12];
 
-    const liveBookingAddOnRevenue = bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-    const liveDepositAddOn = bookings.reduce((sum, b) => sum + (b.depositAmount || 0), 0);
-
-    let roomTypeMultiplier = 1.0;
-    if (roomTypeFilter === 'Deluxe') roomTypeMultiplier = 0.22;
-    else if (roomTypeFilter === 'Suite') roomTypeMultiplier = 0.28;
-    else if (roomTypeFilter === 'Executive') roomTypeMultiplier = 0.25;
-    else if (roomTypeFilter === 'Villa') roomTypeMultiplier = 0.25;
-
     let totalRev = 0;
     let totalRoomRev = 0;
     let totalServiceRev = 0;
@@ -63,26 +54,21 @@ export default function DashboardView({
             const d25 = historicalRevenue.monthly.find(x => x.year === 2025 && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
             const d26 = historicalRevenue.monthly.find(x => x.year === 2026 && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
 
-            monthTotal = (d24.total + d25.total + d26.total) * roomTypeMultiplier;
-            monthRoom = (d24.roomRevenue + d25.roomRevenue + d26.roomRevenue) * roomTypeMultiplier;
-            monthService = (d24.serviceRevenue + d25.serviceRevenue + d26.serviceRevenue) * roomTypeMultiplier;
+            monthTotal = (d24.total + d25.total + d26.total);
+            monthRoom = (d24.roomRevenue + d25.roomRevenue + d26.roomRevenue);
+            monthService = (d24.serviceRevenue + d25.serviceRevenue + d26.serviceRevenue);
             monthNights = (d24.nights + d25.nights + d26.nights);
-            monthDep = (d24.depositCollected + d25.depositCollected + d26.depositCollected) * roomTypeMultiplier;
+            monthDep = (d24.depositCollected + d25.depositCollected + d26.depositCollected);
             monthOcc = Math.round((d24.occ + d25.occ + d26.occ) / 3);
         } else {
             const y = parseInt(yearFilter, 10);
             const d = historicalRevenue.monthly.find(x => x.year === y && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
-            monthTotal = d.total * roomTypeMultiplier;
-            monthRoom = d.roomRevenue * roomTypeMultiplier;
-            monthService = d.serviceRevenue * roomTypeMultiplier;
+            monthTotal = d.total;
+            monthRoom = d.roomRevenue;
+            monthService = d.serviceRevenue;
             monthNights = d.nights;
-            monthDep = d.depositCollected * roomTypeMultiplier;
+            monthDep = d.depositCollected;
             monthOcc = d.occ;
-
-            if (y === 2026 && m === 10) {
-                monthTotal += (liveBookingAddOnRevenue * roomTypeMultiplier);
-                monthDep += (liveDepositAddOn * roomTypeMultiplier);
-            }
         }
 
         totalRev += monthTotal;
@@ -107,6 +93,7 @@ export default function DashboardView({
     const totalDepositHolding = bookings.filter(b => b.status === 'Chờ check-in' || b.status === 'Đã check-in')
                                         .reduce((sum, b) => sum + (b.depositAmount || 0), 0);
     const occRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+    const liveBookingAddOnRevenue = bookings ? bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0) : 0;
 
     // Charts Initialization
     useEffect(() => {
@@ -123,9 +110,7 @@ export default function DashboardView({
         });
         const data2026 = targetMonths.map(m => {
             const item = historicalRevenue.monthly.find(x => x.year === 2026 && x.month === m);
-            let val = item ? item.total : 0;
-            if (m === 10) val += liveBookingAddOnRevenue;
-            return Math.round(val / 1000000);
+            return item ? Math.round(item.total / 1000000) : 0;
         });
 
         // 1. Line Chart
@@ -211,13 +196,32 @@ export default function DashboardView({
 
             let dLabels, dData, dColors;
             if (donutMode === 'room') {
-                dLabels = ['Presidential Villa', 'Executive Suite', 'Premier Family', 'Deluxe Ocean'];
-                dData = [36, 28, 22, 14];
-                dColors = ['#d4af37', '#0284c7', '#8b5cf6', '#10b981'];
+                const roomTypeCounts = {};
+                (bookings || []).forEach(b => {
+                    const r = (rooms || []).find(rm => rm.id === b.roomId);
+                    const type = r ? (r.type || r.name) : (b.roomName || 'Hạng phòng khác');
+                    roomTypeCounts[type] = (roomTypeCounts[type] || 0) + 1;
+                });
+                dLabels = Object.keys(roomTypeCounts);
+                dData = Object.values(roomTypeCounts);
+                if (dLabels.length === 0) {
+                    dLabels = ['Presidential Villa', 'Executive Suite', 'Standard / Superior'];
+                    dData = [1, 1, 1];
+                }
+                dColors = ['#d4af37', '#0284c7', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'];
             } else {
-                dLabels = ['VietQR (Napas 24/7)', 'Thẻ tín dụng POS', 'Tiền mặt tại quầy'];
-                dData = [65, 23, 12];
-                dColors = ['#10b981', '#3b82f6', '#f59e0b'];
+                const methodAmounts = {};
+                (transactions || []).forEach(t => {
+                    const m = t.method || 'VietQR';
+                    methodAmounts[m] = (methodAmounts[m] || 0) + (Number(t.amount) || 0);
+                });
+                dLabels = Object.keys(methodAmounts);
+                dData = Object.values(methodAmounts).map(v => Math.round(v / 1000000));
+                if (dLabels.length === 0) {
+                    dLabels = ['VietQR', 'Tiền mặt', 'Thẻ tín dụng'];
+                    dData = [1, 1, 1];
+                }
+                dColors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'];
             }
 
             chartDonutInstance.current = new window.Chart(chartDonutRef.current, {
@@ -375,10 +379,9 @@ export default function DashboardView({
         const d25 = historicalRevenue.monthly.find(x => x.year === 2025 && x.month === m) || { total: 0 };
         const d26 = historicalRevenue.monthly.find(x => x.year === 2026 && x.month === m) || { total: 0, nights: 0, occ: 0, adr: 0 };
 
-        let t24 = d24.total * roomTypeMultiplier;
-        let t25 = d25.total * roomTypeMultiplier;
-        let t26 = d26.total * roomTypeMultiplier;
-        if (m === 10) t26 += (liveBookingAddOnRevenue * roomTypeMultiplier);
+        let t24 = d24.total;
+        let t25 = d25.total;
+        let t26 = d26.total;
 
         grand24 += t24;
         grand25 += t25;

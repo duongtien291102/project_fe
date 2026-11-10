@@ -45,7 +45,7 @@ export default function App() {
                         onOpenAuthModal={() => ctrl.openModal('auth')}
                         onOpenCustomerProfile={() => ctrl.openModal('customerProfile')}
                         onOpenMyBookings={() => ctrl.openModal('myBookings')}
-                        onEnterAdmin={() => ctrl.setViewMode('admin')}
+                        onEnterAdmin={() => ctrl.handleSetViewMode('admin')}
                         onLogout={ctrl.handleLogout}
                     />
 
@@ -81,6 +81,8 @@ export default function App() {
                                 staffUsers={ctrl.staffUsers}
                                 rolesConfig={ctrl.rolesConfig}
                                 activeStaffId={ctrl.activeStaffId}
+                                currentUser={ctrl.currentUser}
+                                onNavigateTab={tab => ctrl.setAdminTab(tab)}
                                 onSwitchActiveStaff={id => {
                                     ctrl.setActiveStaffId(id);
                                     ctrl.addToast(

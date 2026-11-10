@@ -15,6 +15,15 @@ export default function NavbarView({
     onEnterAdmin,
     onLogout
 }) {
+    // Chỉ tài khoản nhân sự / quản trị viên nội bộ mới được coi là Admin
+    // Quyền user / customer TUYỆT ĐỐI KHÔNG phải là admin và không bao giờ thấy nút vào trang quản trị
+    const isCustomer = !currentUser || currentUser.role === 'customer' || currentUser.role === 'user';
+    const isAdmin = !isCustomer && (
+        currentUser.hasAdminAccess === true ||
+        currentUser.role === 'staff' ||
+        currentUser.role === 'admin'
+    );
+
     return (
         <header className="navbar" id="mainNavbar">
             <a href="#home" className="brand-logo">
@@ -32,38 +41,30 @@ export default function NavbarView({
             </ul>
 
             <div className="nav-actions" id="navUserArea">
-                {currentUser ? (
+                {isAdmin ? (
+                    <>
+                        <button className="btn btn-sm btn-gold" onClick={onEnterAdmin} title="Vào Bảng Điều Khiển Quản Trị" style={{ fontWeight: 700 }}>
+                            <i className="fa-solid fa-gauge-high"></i> Vào Trang Quản Trị
+                        </button>
+                        <button className="btn btn-sm btn-dark" onClick={onLogout} title="Đăng xuất khỏi hệ thống">
+                            <i className="fa-solid fa-arrow-right-from-bracket"></i> Đăng xuất
+                        </button>
+                    </>
+                ) : currentUser ? (
                     <>
                         <div
                             className="user-pill"
-                            style={{ cursor: 'pointer' }}
                             onClick={onOpenCustomerProfile}
-                            title="Xem và cập nhật CCCD"
+                            title="Bấm để xem và cập nhật hồ sơ CCCD"
                         >
                             <div className="user-avatar">{currentUser.avatar || currentUser.name?.charAt(0) || 'U'}</div>
                             <span>{currentUser.name}</span>
-                            {currentUser.hasAdminAccess || currentUser.role === 'staff' ? (
-                                <span style={{ fontSize: '0.72rem', background: 'var(--gold-primary)', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, marginLeft: '4px' }}>
-                                    {currentUser.roleName || 'Quản trị'}
-                                </span>
-                            ) : (
-                                <i className="fa-solid fa-id-card" style={{ color: 'var(--gold-primary)', fontSize: '0.9rem' }} title="Khách Hàng (Đã định danh CCCD)"></i>
-                            )}
+                            <i className="fa-solid fa-id-card user-pill-badge" title="Khách Hàng (Đã định danh CCCD)"></i>
                         </div>
-
-                        {(currentUser.hasAdminAccess || currentUser.role === 'staff') && (
-                            <button className="btn btn-sm btn-gold" onClick={onEnterAdmin} title="Vào Bảng Điều Khiển Quản Trị">
-                                <i className="fa-solid fa-gauge-high"></i> Trang Quản Trị
-                            </button>
-                        )}
-
-                        <button className="btn btn-sm btn-outline-gold" onClick={onOpenCustomerProfile}>
-                            <i className="fa-solid fa-address-card"></i> Hồ sơ CCCD
+                        <button className="btn btn-sm btn-outline-gold" onClick={onOpenMyBookings} title="Xem lịch sử đặt phòng của tôi">
+                            <i className="fa-solid fa-list-check"></i> Lịch sử đặt phòng
                         </button>
-                        <button className="btn btn-sm btn-outline-gold" onClick={onOpenMyBookings}>
-                            <i className="fa-solid fa-list-check"></i> Đơn của tôi
-                        </button>
-                        <button className="btn btn-sm btn-dark" onClick={onLogout} title="Đăng xuất">
+                        <button className="btn btn-sm btn-dark btn-icon-round" onClick={onLogout} title="Đăng xuất khỏi tài khoản">
                             <i className="fa-solid fa-arrow-right-from-bracket"></i>
                         </button>
                     </>

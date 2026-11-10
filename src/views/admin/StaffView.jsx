@@ -35,9 +35,9 @@ export default function StaffView({
             <div className="table-card">
                 <div className="table-header-box">
                     <div>
-                        <h3 className="table-title">Danh Sách Nhân Sự & Phân Quyền Vai Trò</h3>
+                        <h3 className="table-title">Danh Sách Quản Trị Viên & Nhân Sự Nội Bộ</h3>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                            Quản lý tài khoản nội bộ, gán vai trò quyền hạn (MVC Architecture)
+                            Quản lý tài khoản quản trị viên, nhân sự và phân gán vai trò quyền hạn (MVC Architecture)
                         </p>
                     </div>
                     <div className="room-filter-bar">

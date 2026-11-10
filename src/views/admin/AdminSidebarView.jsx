@@ -40,7 +40,7 @@ export default function AdminSidebarView({
         { id: 'rooms-management', label: 'Quản Lý Phòng', icon: 'fa-door-open', perm: null },
         { id: 'bookings-management', label: 'Quản Lý Đặt Phòng & CCCD', icon: 'fa-book-bookmark', perm: 'manage_bookings' },
         { id: 'financial-ledger', label: 'Sổ Quỹ & Thu Chi', icon: 'fa-money-check-dollar', perm: 'manage_finances' },
-        { id: 'users-management', label: 'Quản Lý Phân Quyền', icon: 'fa-users-gear', perm: 'view_staff' },
+        { id: 'users-management', label: 'Quản Trị Viên & Nhân Sự', icon: 'fa-user-shield', perm: 'view_staff' },
         { id: 'permissions-config', label: 'Cấu Hình Phân Quyền', icon: 'fa-shield-halved', perm: 'config_permissions' }
     ];
 

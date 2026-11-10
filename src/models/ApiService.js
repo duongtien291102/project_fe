@@ -5,7 +5,14 @@
  * Cầu nối giao tiếp HTTP giữa Frontend React và Backend Spring Boot + MongoDB Atlas
  */
 
-export const API_BASE_URL = 'http://localhost:8080/api';
+const getApiBaseUrl = () => {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+        return `http://${window.location.hostname}:2402/api`;
+    }
+    return 'http://localhost:2402/api';
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 
 export const ApiService = {
     async getRooms() {
@@ -99,6 +106,109 @@ export const ApiService = {
         } catch (err) {
             console.warn('[ApiService] Lỗi ghi transaction lên BE:', err);
             return tx;
+        }
+    },
+
+    async deleteRoom(roomId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/rooms/${encodeURIComponent(roomId)}`, {
+                method: 'DELETE'
+            });
+            return res.ok;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi xóa room:', err);
+            return false;
+        }
+    },
+
+    async deleteBooking(bookingId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/bookings/${encodeURIComponent(bookingId)}`, {
+                method: 'DELETE'
+            });
+            return res.ok;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi xóa booking:', err);
+            return false;
+        }
+    },
+
+    async getRoles() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/roles`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return json.data || [];
+        } catch (err) {
+            console.warn('[ApiService] Không thể lấy roles từ BE:', err);
+            return null;
+        }
+    },
+
+    async updateRole(roleId, role) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/roles/${encodeURIComponent(roleId)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(role)
+            });
+            const json = await res.json();
+            return json.data;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi cập nhật role lên BE:', err);
+            return role;
+        }
+    },
+
+    async getStaff() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/staff`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return json.data || [];
+        } catch (err) {
+            console.warn('[ApiService] Không thể lấy danh sách nhân viên từ BE:', err);
+            return null;
+        }
+    },
+
+    async saveStaff(staff) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/staff`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(staff)
+            });
+            const json = await res.json();
+            return json.data;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi lưu nhân sự lên BE:', err);
+            return staff;
+        }
+    },
+
+    async toggleStaffStatus(staffId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/staff/${encodeURIComponent(staffId)}/toggle-status`, {
+                method: 'PATCH'
+            });
+            const json = await res.json();
+            return json.data;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi toggle status nhân sự:', err);
+            return null;
+        }
+    },
+
+    async deleteStaff(staffId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/staff/${encodeURIComponent(staffId)}`, {
+                method: 'DELETE'
+            });
+            return res.ok;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi xóa nhân sự lên BE:', err);
+            return false;
         }
     }
 };

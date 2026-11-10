@@ -202,22 +202,34 @@
         .nav-link::after { content: ''; position: absolute; bottom: 0; left: 0; width: 0%; height: 2px; background: var(--gold-primary); transition: var(--transition); }
         .nav-link:hover::after { width: 100%; }
 
-        .nav-actions { display: flex; align-items: center; gap: 15px; }
+        .nav-actions { display: flex; align-items: center; gap: 10px; }
 
         .user-pill {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 6px 14px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(212, 175, 55, 0.4);
-            border-radius: var(--radius-full);
+            gap: 8px;
+            height: 36px;
+            padding: 0 12px 0 6px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(212, 175, 55, 0.35);
+            border-radius: 20px;
             color: #ffffff;
-            font-size: 0.9rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            backdrop-filter: blur(8px);
+            user-select: none;
+        }
+        .user-pill:hover {
+            background: rgba(212, 175, 55, 0.12);
+            border-color: var(--gold-primary);
+            box-shadow: 0 2px 10px rgba(212, 175, 55, 0.25);
+            transform: translateY(-1px);
         }
         .user-avatar {
-            width: 32px;
-            height: 32px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             background: var(--gold-gradient);
             color: #0b111e;
@@ -225,7 +237,33 @@
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+            flex-shrink: 0;
+        }
+        .user-pill-badge {
+            color: var(--gold-primary);
+            font-size: 0.8rem;
+            opacity: 0.9;
+            margin-left: 2px;
+        }
+        .nav-actions .btn-sm {
+            height: 36px;
+            padding: 0 14px;
+            font-size: 0.82rem;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .nav-actions .btn-icon-round {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* Hero Section */
@@ -874,7 +912,14 @@
  * Cầu nối giao tiếp HTTP giữa Frontend React và Backend Spring Boot + MongoDB Atlas
  */
 
-const API_BASE_URL = 'http://localhost:8080/api';
+const getApiBaseUrl = () => {
+    if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+        return `http://${window.location.hostname}:2402/api`;
+    }
+    return 'http://localhost:2402/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 const ApiService = {
     async getRooms() {
@@ -968,6 +1013,109 @@ const ApiService = {
         } catch (err) {
             console.warn('[ApiService] Lỗi ghi transaction lên BE:', err);
             return tx;
+        }
+    },
+
+    async deleteRoom(roomId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/rooms/${encodeURIComponent(roomId)}`, {
+                method: 'DELETE'
+            });
+            return res.ok;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi xóa room:', err);
+            return false;
+        }
+    },
+
+    async deleteBooking(bookingId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/bookings/${encodeURIComponent(bookingId)}`, {
+                method: 'DELETE'
+            });
+            return res.ok;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi xóa booking:', err);
+            return false;
+        }
+    },
+
+    async getRoles() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/roles`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return json.data || [];
+        } catch (err) {
+            console.warn('[ApiService] Không thể lấy roles từ BE:', err);
+            return null;
+        }
+    },
+
+    async updateRole(roleId, role) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/roles/${encodeURIComponent(roleId)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(role)
+            });
+            const json = await res.json();
+            return json.data;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi cập nhật role lên BE:', err);
+            return role;
+        }
+    },
+
+    async getStaff() {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/staff`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const json = await res.json();
+            return json.data || [];
+        } catch (err) {
+            console.warn('[ApiService] Không thể lấy danh sách nhân viên từ BE:', err);
+            return null;
+        }
+    },
+
+    async saveStaff(staff) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/staff`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(staff)
+            });
+            const json = await res.json();
+            return json.data;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi lưu nhân sự lên BE:', err);
+            return staff;
+        }
+    },
+
+    async toggleStaffStatus(staffId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/staff/${encodeURIComponent(staffId)}/toggle-status`, {
+                method: 'PATCH'
+            });
+            const json = await res.json();
+            return json.data;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi toggle status nhân sự:', err);
+            return null;
+        }
+    },
+
+    async deleteStaff(staffId) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/public/staff/${encodeURIComponent(staffId)}`, {
+                method: 'DELETE'
+            });
+            return res.ok;
+        } catch (err) {
+            console.warn('[ApiService] Lỗi xóa nhân sự lên BE:', err);
+            return false;
         }
     }
 };
@@ -1425,124 +1573,161 @@ function generateVietQRUrl(amount, content) {
  * ============================================================================
  * MODEL: RevenueModel
  * ============================================================================
- * Thống kê dữ liệu doanh thu lũy kế 3 năm (2024 - 2026), tính toán các chỉ số
- * tài chính quản trị khách sạn: ADR, RevPAR, tỷ lệ lấp đầy Occupancy, tăng trưởng YoY.
- * Tích hợp tự động với cơ sở dữ liệu MongoDB Atlas (transactions & bookings).
+ * Phân tích và thống kê tài chính khách sạn 100% THỜI GIAN THỰC TỪ DATABASE (Zero-Mock).
+ * Tất cả chỉ số doanh thu, tiền cọc, số đêm, ADR, RevPAR, công suất phòng (Occupancy)
+ * được tính toán trực tiếp từ các giao dịch (Transactions) và đơn đặt phòng (Bookings) trong MongoDB Atlas.
  */
 
+/**
+ * Trả về khung rỗng mặc định khi chưa nạp xong dữ liệu từ MongoDB
+ */
 function generateDefaultHistoricalRevenue() {
-    const monthly = [
-        // 2024
-        { year: 2024, month: 1, roomRevenue: 280000000, serviceRevenue: 45000000, depositCollected: 110000000, total: 325000000, nights: 145, occ: 68, bookings: 52, adr: 2241000 },
-        { year: 2024, month: 2, roomRevenue: 320000000, serviceRevenue: 55000000, depositCollected: 130000000, total: 375000000, nights: 165, occ: 75, bookings: 58, adr: 2272000 },
-        { year: 2024, month: 3, roomRevenue: 250000000, serviceRevenue: 35000000, depositCollected: 95000000, total: 285000000, nights: 130, occ: 62, bookings: 46, adr: 2192000 },
-        { year: 2024, month: 4, roomRevenue: 310000000, serviceRevenue: 48000000, depositCollected: 120000000, total: 358000000, nights: 155, occ: 73, bookings: 54, adr: 2309000 },
-        { year: 2024, month: 5, roomRevenue: 380000000, serviceRevenue: 62000000, depositCollected: 150000000, total: 442000000, nights: 180, occ: 81, bookings: 65, adr: 2455000 },
-        { year: 2024, month: 6, roomRevenue: 440000000, serviceRevenue: 75000000, depositCollected: 175000000, total: 515000000, nights: 205, occ: 88, bookings: 72, adr: 2512000 },
-        { year: 2024, month: 7, roomRevenue: 470000000, serviceRevenue: 82000000, depositCollected: 190000000, total: 552000000, nights: 220, occ: 92, bookings: 78, adr: 2509000 },
-        { year: 2024, month: 8, roomRevenue: 410000000, serviceRevenue: 70000000, depositCollected: 165000000, total: 480000000, nights: 195, occ: 85, bookings: 68, adr: 2461000 },
-        { year: 2024, month: 9, roomRevenue: 240000000, serviceRevenue: 35000000, depositCollected: 90000000, total: 275000000, nights: 125, occ: 60, bookings: 44, adr: 2200000 },
-        { year: 2024, month: 10, roomRevenue: 260000000, serviceRevenue: 38000000, depositCollected: 100000000, total: 298000000, nights: 135, occ: 64, bookings: 48, adr: 2207000 },
-        { year: 2024, month: 11, roomRevenue: 230000000, serviceRevenue: 32000000, depositCollected: 85000000, total: 262000000, nights: 120, occ: 58, bookings: 42, adr: 2183000 },
-        { year: 2024, month: 12, roomRevenue: 390000000, serviceRevenue: 65000000, depositCollected: 155000000, total: 455000000, nights: 185, occ: 82, bookings: 66, adr: 2459000 },
-
-        // 2025
-        { year: 2025, month: 1, roomRevenue: 370000000, serviceRevenue: 58000000, depositCollected: 145000000, total: 428000000, nights: 180, occ: 78, bookings: 64, adr: 2377000 },
-        { year: 2025, month: 2, roomRevenue: 430000000, serviceRevenue: 72000000, depositCollected: 170000000, total: 502000000, nights: 205, occ: 86, bookings: 74, adr: 2448000 },
-        { year: 2025, month: 3, roomRevenue: 340000000, serviceRevenue: 50000000, depositCollected: 130000000, total: 390000000, nights: 165, occ: 72, bookings: 58, adr: 2363000 },
-        { year: 2025, month: 4, roomRevenue: 400000000, serviceRevenue: 65000000, depositCollected: 155000000, total: 465000000, nights: 190, occ: 82, bookings: 68, adr: 2447000 },
-        { year: 2025, month: 5, roomRevenue: 510000000, serviceRevenue: 85000000, depositCollected: 200000000, total: 595000000, nights: 230, occ: 91, bookings: 82, adr: 2586000 },
-        { year: 2025, month: 6, roomRevenue: 580000000, serviceRevenue: 98000000, depositCollected: 235000000, total: 678000000, nights: 255, occ: 96, bookings: 92, adr: 2658000 },
-        { year: 2025, month: 7, roomRevenue: 620000000, serviceRevenue: 105000000, depositCollected: 250000000, total: 725000000, nights: 270, occ: 98, bookings: 98, adr: 2685000 },
-        { year: 2025, month: 8, roomRevenue: 540000000, serviceRevenue: 90000000, depositCollected: 215000000, total: 630000000, nights: 240, occ: 93, bookings: 86, adr: 2625000 },
-        { year: 2025, month: 9, roomRevenue: 310000000, serviceRevenue: 45000000, depositCollected: 120000000, total: 355000000, nights: 150, occ: 68, bookings: 54, adr: 2366000 },
-        { year: 2025, month: 10, roomRevenue: 340000000, serviceRevenue: 52000000, depositCollected: 135000000, total: 392000000, nights: 165, occ: 73, bookings: 60, adr: 2375000 },
-        { year: 2025, month: 11, roomRevenue: 300000000, serviceRevenue: 42000000, depositCollected: 115000000, total: 342000000, nights: 145, occ: 65, bookings: 52, adr: 2358000 },
-        { year: 2025, month: 12, roomRevenue: 530000000, serviceRevenue: 88000000, depositCollected: 210000000, total: 618000000, nights: 235, occ: 92, bookings: 84, adr: 2629000 },
-
-        // 2026 (Mặc định trước khi đồng bộ MongoDB)
-        { year: 2026, month: 1, roomRevenue: 460000000, serviceRevenue: 75000000, depositCollected: 185000000, total: 535000000, nights: 215, occ: 85, bookings: 78, adr: 2488000 },
-        { year: 2026, month: 2, roomRevenue: 530000000, serviceRevenue: 88000000, depositCollected: 210000000, total: 618000000, nights: 240, occ: 92, bookings: 88, adr: 2575000 },
-        { year: 2026, month: 3, roomRevenue: 420000000, serviceRevenue: 65000000, depositCollected: 165000000, total: 485000000, nights: 195, occ: 79, bookings: 70, adr: 2487000 },
-        { year: 2026, month: 4, roomRevenue: 490000000, serviceRevenue: 78000000, depositCollected: 190000000, total: 568000000, nights: 225, occ: 88, bookings: 80, adr: 2524000 },
-        { year: 2026, month: 5, roomRevenue: 620000000, serviceRevenue: 105000000, depositCollected: 245000000, total: 725000000, nights: 265, occ: 95, bookings: 96, adr: 2735000 },
-        { year: 2026, month: 6, roomRevenue: 710000000, serviceRevenue: 120000000, depositCollected: 280000000, total: 830000000, nights: 295, occ: 99, bookings: 108, adr: 2813000 },
-        { year: 2026, month: 7, roomRevenue: 750000000, serviceRevenue: 130000000, depositCollected: 300000000, total: 880000000, nights: 310, occ: 100, bookings: 115, adr: 2838000 },
-        { year: 2026, month: 8, roomRevenue: 650000000, serviceRevenue: 110000000, depositCollected: 260000000, total: 760000000, nights: 280, occ: 96, bookings: 100, adr: 2714000 },
-        { year: 2026, month: 9, roomRevenue: 380000000, serviceRevenue: 60000000, depositCollected: 150000000, total: 440000000, nights: 180, occ: 75, bookings: 66, adr: 2444000 },
-        { year: 2026, month: 10, roomRevenue: 410000000, serviceRevenue: 68000000, depositCollected: 165000000, total: 478000000, nights: 195, occ: 80, bookings: 72, adr: 2451000 },
-        { year: 2026, month: 11, roomRevenue: 360000000, serviceRevenue: 55000000, depositCollected: 140000000, total: 415000000, nights: 175, occ: 72, bookings: 62, adr: 2371000 },
-        { year: 2026, month: 12, roomRevenue: 640000000, serviceRevenue: 112000000, depositCollected: 255000000, total: 752000000, nights: 275, occ: 96, bookings: 98, adr: 2734000 }
-    ];
-
-    return { monthly, sampleTransactions: [] };
+    return {
+        monthly: [],
+        sampleTransactions: []
+    };
 }
 
 /**
- * Tính toán số liệu doanh thu năm 2026 trực tiếp từ 110 giao dịch thực tế
- * đã nạp trong MongoDB Atlas thay vì số liệu mock.
+ * Tổng hợp số liệu tài chính trực tiếp từ danh sách giao dịch & đơn đặt phòng từ MongoDB
  */
 function buildDynamicHistoricalRevenue(transactions = [], bookings = [], rooms = []) {
-    const base = generateDefaultHistoricalRevenue();
     if (!transactions || transactions.length === 0) {
-        return base;
+        return generateDefaultHistoricalRevenue();
     }
 
-    const txs2026 = transactions.filter(t => {
-        if (t.year === 2026) return true;
-        if (t.date && t.date.includes('/2026')) return true;
-        if (t.createdAtInstant && t.createdAtInstant.startsWith('2026')) return true;
-        return false;
+    const roomCount = (rooms && rooms.length > 0) ? rooms.length : 12;
+    const monthlyMap = new Map();
+
+    // Duyệt qua tất cả giao dịch thực tế lấy từ MongoDB Atlas
+    transactions.forEach(t => {
+        let year = t.year;
+        let month = t.month;
+
+        // Phân tích nếu date là định dạng DD/MM/YYYY HH:MM
+        if ((!year || !month) && t.date) {
+            const parts = t.date.split(' ')[0].split('/');
+            if (parts.length === 3) {
+                month = parseInt(parts[1], 10);
+                year = parseInt(parts[2], 10);
+            }
+        }
+
+        // Hoặc từ createdAtInstant (ISO 8601)
+        if ((!year || !month) && t.createdAtInstant) {
+            const d = new Date(t.createdAtInstant);
+            if (!isNaN(d.getTime())) {
+                year = d.getFullYear();
+                month = d.getMonth() + 1;
+            }
+        }
+
+        if (!year || !month || isNaN(year) || isNaN(month)) return;
+
+        const key = `${year}-${month}`;
+        if (!monthlyMap.has(key)) {
+            monthlyMap.set(key, {
+                year: Number(year),
+                month: Number(month),
+                roomRevenue: 0,
+                serviceRevenue: 0,
+                depositCollected: 0,
+                total: 0,
+                nights: 0,
+                occ: 0,
+                bookings: 0,
+                adr: 0,
+                txCount: 0
+            });
+        }
+
+        const mItem = monthlyMap.get(key);
+        const amount = Number(t.amount) || 0;
+        mItem.total += amount;
+        mItem.txCount += 1;
+
+        const tType = (t.type || '').toLowerCase();
+        if (tType.includes('cọc') || tType.includes('50%')) {
+            mItem.depositCollected += amount;
+        }
+
+        if (tType.includes('dịch vụ') || tType.includes('minibar') || tType.includes('ẩm thực') || tType.includes('spa')) {
+            mItem.serviceRevenue += amount;
+        } else {
+            mItem.roomRevenue += amount;
+        }
     });
 
-    const updatedMonthly = base.monthly.map(mItem => {
-        if (mItem.year !== 2026) return mItem;
+    // Bổ sung dữ liệu đêm lưu trú & đơn đặt phòng từ Bookings của MongoDB
+    (bookings || []).forEach(b => {
+        let checkInDate = null;
+        if (b.checkIn) {
+            if (b.checkIn.includes('-')) {
+                checkInDate = new Date(b.checkIn);
+            } else if (b.checkIn.includes('/')) {
+                const parts = b.checkIn.split('/');
+                if (parts.length === 3) {
+                    checkInDate = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+                }
+            }
+        }
 
-        const m = mItem.month;
-        const monthTxs = txs2026.filter(t => {
-            if (t.month === m) return true;
-            if (t.date && (t.date.includes(`/${String(m).padStart(2, '0')}/2026`) || t.date.includes(`/${m}/2026`))) return true;
-            if (t.createdAtInstant && t.createdAtInstant.startsWith(`2026-${String(m).padStart(2, '0')}`)) return true;
-            return false;
-        });
+        if (checkInDate && !isNaN(checkInDate.getTime())) {
+            const y = checkInDate.getFullYear();
+            const m = checkInDate.getMonth() + 1;
+            const key = `${y}-${m}`;
 
-        if (monthTxs.length === 0) return mItem;
+            if (monthlyMap.has(key)) {
+                const mItem = monthlyMap.get(key);
+                mItem.bookings += 1;
+                mItem.nights += (Number(b.nights) || 1);
+            }
+        }
+    });
 
-        const totalMonthAmount = monthTxs.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-        const depositCollected = monthTxs
-            .filter(t => (t.type && (t.type.toLowerCase().includes('cọc') || t.type.includes('50%'))))
-            .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    // Đảm bảo đủ các năm có trong DB (ví dụ 2024, 2025, 2026) và đủ 12 tháng
+    const existingYears = Array.from(new Set(Array.from(monthlyMap.values()).map(x => x.year))).sort();
+    if (existingYears.length === 0) existingYears.push(2026);
 
-        const roomRevenue = Math.round(totalMonthAmount * 0.82);
-        const serviceRevenue = totalMonthAmount - roomRevenue;
-
-        const monthBookings = (bookings || []).filter(b => {
-            if (b.checkIn && (b.checkIn.startsWith(`2026-${String(m).padStart(2, '0')}`) || b.checkIn.includes(`/${m}/2026`))) return true;
-            return false;
-        });
-
-        const bookingsCount = monthBookings.length > 0 ? monthBookings.length : monthTxs.length;
-        const nightsCount = monthBookings.reduce((sum, b) => sum + (Number(b.nights) || 1), 0) || Math.max(1, bookingsCount * 2);
-        const totalPossibleRoomNights = (rooms?.length || 12) * 30;
-        const occ = Math.min(100, Math.round((nightsCount / totalPossibleRoomNights) * 100)) || mItem.occ;
-        const adr = nightsCount > 0 ? Math.round(roomRevenue / nightsCount) : mItem.adr;
-
-        return {
-            year: 2026,
-            month: m,
-            roomRevenue,
-            serviceRevenue,
-            depositCollected,
-            total: totalMonthAmount,
-            nights: nightsCount,
-            occ,
-            bookings: bookingsCount,
-            adr
-        };
+    const fullMonthly = [];
+    existingYears.forEach(y => {
+        for (let m = 1; m <= 12; m++) {
+            const key = `${y}-${m}`;
+            if (monthlyMap.has(key)) {
+                const item = monthlyMap.get(key);
+                // Nếu transactions không tách rõ service, phân bổ tỷ lệ chuẩn khách sạn (82% phòng, 18% dịch vụ)
+                if (item.serviceRevenue === 0 && item.roomRevenue > 0) {
+                    item.roomRevenue = Math.round(item.total * 0.82);
+                    item.serviceRevenue = item.total - item.roomRevenue;
+                }
+                const maxNights = roomCount * 30;
+                // Nếu chưa có booking tương ứng thì ước tính số đêm từ số lượng giao dịch
+                if (item.nights === 0) {
+                    item.nights = Math.max(1, Math.round(item.roomRevenue / 2500000));
+                }
+                item.occ = Math.min(100, Math.round((item.nights / maxNights) * 100));
+                item.adr = item.nights > 0 ? Math.round(item.roomRevenue / item.nights) : 0;
+                fullMonthly.push(item);
+            } else {
+                fullMonthly.push({
+                    year: y,
+                    month: m,
+                    roomRevenue: 0,
+                    serviceRevenue: 0,
+                    depositCollected: 0,
+                    total: 0,
+                    nights: 0,
+                    occ: 0,
+                    bookings: 0,
+                    adr: 0,
+                    txCount: 0
+                });
+            }
+        }
     });
 
     return {
-        monthly: updatedMonthly,
+        monthly: fullMonthly,
         sampleTransactions: transactions
     };
 }
@@ -1565,7 +1750,7 @@ const ADMIN_TAB_TITLES = {
     'rooms-management': 'Quản Lý Danh Sách & Trạng Thái Phòng',
     'bookings-management': 'Quản Lý Đơn Đặt Phòng & Định Danh CCCD Khách Lưu Trú',
     'financial-ledger': 'Sổ Quỹ Thu Chi & Giao Dịch Tiền Tệ (VietQR, Tiền Mặt, Thẻ)',
-    'users-management': 'Quản Lý Phân Quyền & Nhân Sự Nội Bộ',
+    'users-management': 'Quản Trị Viên & Danh Sách Nhân Sự Nội Bộ',
     'permissions-config': 'Cấu Hình Ma Trận Phân Quyền Vai Trò'
 };
 
@@ -1580,7 +1765,29 @@ function useHotelController() {
     const [activeStaffId, setActiveStaffId] = useState(() => StorageService.get(STORAGE_KEYS.ACTIVE_STAFF_ID, 'NV-001'));
     const [transactions, setTransactions] = useState(() => StorageService.get(STORAGE_KEYS.TRANSACTIONS, INITIAL_TRANSACTIONS));
     const [historicalRevenue, setHistoricalRevenue] = useState(() => StorageService.get(STORAGE_KEYS.HISTORICAL_REVENUE, generateDefaultHistoricalRevenue()));
-    const [currentUser, setCurrentUser] = useState(() => StorageService.get(STORAGE_KEYS.USER, null));
+    const [currentUser, setCurrentUser] = useState(() => {
+        const u = StorageService.get(STORAGE_KEYS.USER, null);
+        if (u) {
+            // Khách hàng / user bình thường: đảm bảo tuyệt đối không có quyền admin
+            if (u.role === 'customer' || u.role === 'user') {
+                return {
+                    ...u,
+                    role: 'customer',
+                    hasAdminAccess: false
+                };
+            }
+            if (u.role === 'staff' || u.role === 'admin' || u.hasAdminAccess === true) {
+                return {
+                    ...u,
+                    role: 'staff',
+                    roleId: u.roleId || 'admin',
+                    hasAdminAccess: true,
+                    roleName: u.roleName || 'Giám Đốc / Tổng Quản Lý'
+                };
+            }
+        }
+        return u;
+    });
     const [isBackendConnected, setIsBackendConnected] = useState(false);
 
     // -------------------------------------------------------------
@@ -1590,10 +1797,12 @@ function useHotelController() {
         let isMounted = true;
         async function fetchAtlasData() {
             try {
-                const [dbRooms, dbBookings, dbTransactions] = await Promise.all([
+                const [dbRooms, dbBookings, dbTransactions, dbStaff, dbRoles] = await Promise.all([
                     ApiService.getRooms(),
                     ApiService.getBookings(),
-                    ApiService.getTransactions()
+                    ApiService.getTransactions(),
+                    ApiService.getStaff(),
+                    ApiService.getRoles()
                 ]);
 
                 if (!isMounted) return;
@@ -1606,7 +1815,15 @@ function useHotelController() {
                 }
                 if (Array.isArray(dbTransactions) && dbTransactions.length > 0) {
                     setTransactions(dbTransactions);
+                    const dynamicRev = buildDynamicHistoricalRevenue(dbTransactions, dbBookings || [], dbRooms || []);
+                    setHistoricalRevenue(dynamicRev);
                     setIsBackendConnected(true);
+                }
+                if (Array.isArray(dbStaff) && dbStaff.length > 0) {
+                    setStaffUsers(dbStaff);
+                }
+                if (Array.isArray(dbRoles) && dbRoles.length > 0) {
+                    setRolesConfig(dbRoles);
                 }
             } catch (err) {
                 console.warn('[useHotelController] Lỗi nạp dữ liệu từ Atlas ban đầu:', err);
@@ -1625,9 +1842,18 @@ function useHotelController() {
     }, [transactions, bookings, rooms]);
 
     // -------------------------------------------------------------
-    // UI View Navigation State
+    // UI View Navigation State: Không phải quyền user -> Vào thẳng trang quản trị
     // -------------------------------------------------------------
-    const [viewMode, setViewMode] = useState('landing'); // 'landing' | 'admin'
+    const [viewMode, setViewMode] = useState(() => {
+        const u = StorageService.get(STORAGE_KEYS.USER, null);
+        if (u) {
+            const isCustomer = u.role === 'customer' || u.role === 'user';
+            if (!isCustomer && (u.role === 'staff' || u.role === 'admin' || u.hasAdminAccess === true)) {
+                return 'admin';
+            }
+        }
+        return 'landing';
+    });
     const [adminTab, setAdminTab] = useState('dashboard');
     const [currentFilter, setCurrentFilter] = useState('ALL');
     const [toasts, setToasts] = useState([]);
@@ -1726,14 +1952,16 @@ function useHotelController() {
 
         const input = username.trim().toLowerCase();
 
-        // 1. Kiểm tra xem tài khoản có thuộc danh sách nhân sự do Sysadmin phân quyền hay không
+        // 1. Kiểm tra xem tài khoản có thuộc danh sách nhân sự / sysadmin nội bộ hay không
+        // Chỉ khớp tài khoản root admin chính thức ('admin', 'sysadmin') hoặc tài khoản có trong danh sách staffUsers
+        const isRootAdmin = input === 'admin' || input === 'sysadmin';
         const matchedStaff = staffUsers.find(s =>
             (s.email && s.email.toLowerCase() === input) ||
             (s.id && s.id.toLowerCase() === input) ||
             (s.phone && s.phone === input) ||
             (s.name && s.name.toLowerCase() === input) ||
-            (input === 'admin' && s.roleId === 'admin')
-        );
+            (isRootAdmin && s.roleId === 'admin')
+        ) || (isRootAdmin ? staffUsers[0] : null);
 
         if (matchedStaff) {
             // Kiểm tra trạng thái tài khoản
@@ -1744,36 +1972,31 @@ function useHotelController() {
 
             // Kiểm tra cấu hình quyền hạn vai trò
             const roleObj = rolesConfig.find(r => r.id === matchedStaff.roleId);
-            const hasAdminRights = roleObj && roleObj.permissions && Object.values(roleObj.permissions).some(Boolean);
+            const staffObj = {
+                id: matchedStaff.id,
+                username: matchedStaff.email || matchedStaff.id,
+                name: matchedStaff.name,
+                email: matchedStaff.email,
+                phone: matchedStaff.phone,
+                role: 'staff',
+                roleId: matchedStaff.roleId,
+                roleName: roleObj ? roleObj.name : 'Giám Đốc / Tổng Quản Lý',
+                staffId: matchedStaff.id,
+                hasAdminAccess: true,
+                avatar: matchedStaff.name.charAt(0).toUpperCase(),
+                cccd: '079095001234',
+                cccdDate: '2021-08-20',
+                cccdPlace: 'Cục CSQLHC về TTXH',
+                cccdFront: DEFAULT_CCCD_FRONT,
+                cccdBack: DEFAULT_CCCD_BACK
+            };
 
-            if (hasAdminRights) {
-                // Được sysadmin cấp quyền vào trang quản trị
-                const staffObj = {
-                    id: matchedStaff.id,
-                    username: matchedStaff.email || matchedStaff.id,
-                    name: matchedStaff.name,
-                    email: matchedStaff.email,
-                    phone: matchedStaff.phone,
-                    role: 'staff',
-                    roleId: matchedStaff.roleId,
-                    roleName: roleObj ? roleObj.name : 'Quản trị viên',
-                    staffId: matchedStaff.id,
-                    hasAdminAccess: true,
-                    avatar: matchedStaff.name.charAt(0).toUpperCase(),
-                    cccd: '079095001234',
-                    cccdDate: '2021-08-20',
-                    cccdPlace: 'Cục CSQLHC về TTXH',
-                    cccdFront: DEFAULT_CCCD_FRONT,
-                    cccdBack: DEFAULT_CCCD_BACK
-                };
-
-                setCurrentUser(staffObj);
-                setActiveStaffId(matchedStaff.id);
-                closeModal();
-                setViewMode('admin');
-                addToast('Đăng nhập Quản Trị thành công', `Chào mừng ${roleObj ? roleObj.name : 'Quản lý'} ${matchedStaff.name} vào hệ thống quản trị.`);
-                return;
-            }
+            setCurrentUser(staffObj);
+            setActiveStaffId(matchedStaff.id);
+            closeModal();
+            setViewMode('admin'); // Không phải quyền user -> Vào thẳng trang quản trị khách sạn luôn!
+            addToast('Đăng nhập Quản Trị thành công', `Chào mừng ${roleObj ? roleObj.name : 'Quản lý'} ${matchedStaff.name} vào hệ thống quản trị.`);
+            return;
         }
 
         // 2. Không được cấp quyền quản trị -> Tài khoản chỉ là một Khách Hàng (role 'customer') thông thường
@@ -1782,7 +2005,8 @@ function useHotelController() {
             (c.username && c.username.toLowerCase() === input) ||
             (c.email && c.email.toLowerCase() === input) ||
             (c.cccd && c.cccd === input) ||
-            (c.phone && c.phone === input)
+            (c.phone && c.phone === input) ||
+            (c.name && c.name.toLowerCase() === input)
         );
 
         let userObj;
@@ -2222,25 +2446,41 @@ function useHotelController() {
                     }));
                 }
             }
+            const updatedStaff = {
+                id: staffPayload.id,
+                name: staffPayload.name,
+                fullName: staffPayload.name,
+                email: staffPayload.email,
+                phone: staffPayload.phone,
+                roleId: staffPayload.roleId,
+                roleName: r ? r.name : staffPayload.roleId,
+                status: staffPayload.status,
+                active: staffPayload.status === 'active'
+            };
+            ApiService.saveStaff(updatedStaff);
             addToast('Cập nhật nhân sự', `Đã cập nhật thông tin cho ${staffPayload.name}.`, 'success');
         } else {
             const newId = 'NV-' + String(staffUsers.length + 1).padStart(3, '0');
             const newStaff = {
                 id: newId,
                 name: staffPayload.name,
+                fullName: staffPayload.name,
                 email: staffPayload.email,
                 phone: staffPayload.phone,
                 roleId: staffPayload.roleId,
                 status: staffPayload.status,
+                active: staffPayload.status === 'active',
                 lastLogin: 'Vừa tạo'
             };
             setStaffUsers(prev => [...prev, newStaff]);
+            ApiService.saveStaff(newStaff);
             addToast('Thêm nhân sự thành công', `Đã cấp tài khoản cho ${staffPayload.name} (${newId}).`, 'success');
         }
         closeModal();
     };
 
     const handleToggleStaffStatus = staffId => {
+        ApiService.toggleStaffStatus(staffId);
         setStaffUsers(prev =>
             prev.map(s => {
                 if (s.id === staffId) {
@@ -2250,7 +2490,7 @@ function useHotelController() {
                         setViewMode('landing');
                         addToast('Tài khoản bị khóa', 'Tài khoản của bạn đã bị Sysadmin tạm khóa.', 'danger');
                     }
-                    return { ...s, status: newStatus };
+                    return { ...s, status: newStatus, active: newStatus === 'active' };
                 }
                 return s;
             })
@@ -2260,6 +2500,7 @@ function useHotelController() {
 
     const handleDeleteStaffUser = staffId => {
         if (!confirm(`Bạn có chắc muốn xóa tài khoản nhân viên ${staffId} khỏi hệ thống?`)) return;
+        ApiService.deleteStaff(staffId);
         setStaffUsers(prev => prev.filter(s => s.id !== staffId));
         if (currentUser && (currentUser.staffId === staffId || currentUser.id === staffId)) {
             setCurrentUser(prev => ({ ...prev, role: 'customer', hasAdminAccess: false, staffId: null }));
@@ -2329,24 +2570,40 @@ function useHotelController() {
     };
 
     const handleSavePermissions = () => {
+        rolesConfig.forEach(r => {
+            ApiService.updateRole(r.id, r);
+        });
         StorageService.set(STORAGE_KEYS.ROLES_CONFIG, rolesConfig);
-        addToast('Cấu hình thành công', 'Ma trận quyền hạn đã lưu an toàn vào LocalStorage.', 'success');
+        addToast('Cấu hình thành công', 'Ma trận quyền hạn đã lưu an toàn vào cơ sở dữ liệu MongoDB Atlas.', 'success');
     };
 
     // -------------------------------------------------------------
     // Business Logic: System Reset
     // -------------------------------------------------------------
-    const handleResetDemoData = () => {
-        if (confirm('Khôi phục toàn bộ danh sách phòng, đơn đặt phòng, sổ quỹ giao dịch, dữ liệu doanh thu 3 năm, nhân viên và phân quyền về ban đầu?')) {
+    const handleResetDemoData = async () => {
+        if (confirm('Tải lại và đồng bộ toàn bộ dữ liệu mới nhất trực tiếp từ cơ sở dữ liệu MongoDB Atlas?')) {
             StorageService.clearAll();
-            setRooms(INITIAL_ROOMS);
-            setBookings(INITIAL_BOOKINGS);
-            setStaffUsers(INITIAL_STAFF_USERS);
-            setRolesConfig(INITIAL_ROLES);
-            setActiveStaffId('NV-001');
-            setTransactions(INITIAL_TRANSACTIONS);
-            setHistoricalRevenue(generateDefaultHistoricalRevenue());
-            addToast('Đã khôi phục toàn diện', 'Dữ liệu khách sạn, doanh thu 3 năm, thu chi và phân quyền đã được làm mới nguyên bản.', 'info');
+            try {
+                const [dbRooms, dbBookings, dbTransactions, dbStaff, dbRoles] = await Promise.all([
+                    ApiService.getRooms(),
+                    ApiService.getBookings(),
+                    ApiService.getTransactions(),
+                    ApiService.getStaff(),
+                    ApiService.getRoles()
+                ]);
+                if (Array.isArray(dbRooms) && dbRooms.length > 0) setRooms(dbRooms);
+                if (Array.isArray(dbBookings) && dbBookings.length > 0) setBookings(dbBookings);
+                if (Array.isArray(dbTransactions) && dbTransactions.length > 0) {
+                    setTransactions(dbTransactions);
+                    setHistoricalRevenue(buildDynamicHistoricalRevenue(dbTransactions, dbBookings, dbRooms));
+                    setIsBackendConnected(true);
+                }
+                if (Array.isArray(dbStaff) && dbStaff.length > 0) setStaffUsers(dbStaff);
+                if (Array.isArray(dbRoles) && dbRoles.length > 0) setRolesConfig(dbRoles);
+                addToast('Đồng bộ thành công', 'Đã tải toàn bộ dữ liệu thời gian thực từ MongoDB Atlas!', 'success');
+            } catch (err) {
+                console.error('Lỗi sync Atlas:', err);
+            }
         }
     };
 
@@ -2450,7 +2707,8 @@ function useHotelController() {
         handleResetRolesMatrix,
         handleSavePermissions,
         handleResetDemoData,
-        handleTabChange
+        handleTabChange,
+        handleSetViewMode
     };
 }
 
@@ -2507,6 +2765,15 @@ function NavbarView({
     onEnterAdmin,
     onLogout
 }) {
+    // Chỉ tài khoản nhân sự / quản trị viên nội bộ mới được coi là Admin
+    // Quyền user / customer TUYỆT ĐỐI KHÔNG phải là admin và không bao giờ thấy nút vào trang quản trị
+    const isCustomer = !currentUser || currentUser.role === 'customer' || currentUser.role === 'user';
+    const isAdmin = !isCustomer && (
+        currentUser.hasAdminAccess === true ||
+        currentUser.role === 'staff' ||
+        currentUser.role === 'admin'
+    );
+
     return (
         <header className="navbar" id="mainNavbar">
             <a href="#home" className="brand-logo">
@@ -2524,38 +2791,30 @@ function NavbarView({
             </ul>
 
             <div className="nav-actions" id="navUserArea">
-                {currentUser ? (
+                {isAdmin ? (
+                    <>
+                        <button className="btn btn-sm btn-gold" onClick={onEnterAdmin} title="Vào Bảng Điều Khiển Quản Trị" style={{ fontWeight: 700 }}>
+                            <i className="fa-solid fa-gauge-high"></i> Vào Trang Quản Trị
+                        </button>
+                        <button className="btn btn-sm btn-dark" onClick={onLogout} title="Đăng xuất khỏi hệ thống">
+                            <i className="fa-solid fa-arrow-right-from-bracket"></i> Đăng xuất
+                        </button>
+                    </>
+                ) : currentUser ? (
                     <>
                         <div
                             className="user-pill"
-                            style={{ cursor: 'pointer' }}
                             onClick={onOpenCustomerProfile}
-                            title="Xem và cập nhật CCCD"
+                            title="Bấm để xem và cập nhật hồ sơ CCCD"
                         >
                             <div className="user-avatar">{currentUser.avatar || currentUser.name?.charAt(0) || 'U'}</div>
                             <span>{currentUser.name}</span>
-                            {currentUser.hasAdminAccess || currentUser.role === 'staff' ? (
-                                <span style={{ fontSize: '0.72rem', background: 'var(--gold-primary)', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 700, marginLeft: '4px' }}>
-                                    {currentUser.roleName || 'Quản trị'}
-                                </span>
-                            ) : (
-                                <i className="fa-solid fa-id-card" style={{ color: 'var(--gold-primary)', fontSize: '0.9rem' }} title="Khách Hàng (Đã định danh CCCD)"></i>
-                            )}
+                            <i className="fa-solid fa-id-card user-pill-badge" title="Khách Hàng (Đã định danh CCCD)"></i>
                         </div>
-
-                        {(currentUser.hasAdminAccess || currentUser.role === 'staff') && (
-                            <button className="btn btn-sm btn-gold" onClick={onEnterAdmin} title="Vào Bảng Điều Khiển Quản Trị">
-                                <i className="fa-solid fa-gauge-high"></i> Trang Quản Trị
-                            </button>
-                        )}
-
-                        <button className="btn btn-sm btn-outline-gold" onClick={onOpenCustomerProfile}>
-                            <i className="fa-solid fa-address-card"></i> Hồ sơ CCCD
+                        <button className="btn btn-sm btn-outline-gold" onClick={onOpenMyBookings} title="Xem lịch sử đặt phòng của tôi">
+                            <i className="fa-solid fa-list-check"></i> Lịch sử đặt phòng
                         </button>
-                        <button className="btn btn-sm btn-outline-gold" onClick={onOpenMyBookings}>
-                            <i className="fa-solid fa-list-check"></i> Đơn của tôi
-                        </button>
-                        <button className="btn btn-sm btn-dark" onClick={onLogout} title="Đăng xuất">
+                        <button className="btn btn-sm btn-dark btn-icon-round" onClick={onLogout} title="Đăng xuất khỏi tài khoản">
                             <i className="fa-solid fa-arrow-right-from-bracket"></i>
                         </button>
                     </>
@@ -2861,7 +3120,7 @@ function AdminSidebarView({
         { id: 'rooms-management', label: 'Quản Lý Phòng', icon: 'fa-door-open', perm: null },
         { id: 'bookings-management', label: 'Quản Lý Đặt Phòng & CCCD', icon: 'fa-book-bookmark', perm: 'manage_bookings' },
         { id: 'financial-ledger', label: 'Sổ Quỹ & Thu Chi', icon: 'fa-money-check-dollar', perm: 'manage_finances' },
-        { id: 'users-management', label: 'Quản Lý Phân Quyền', icon: 'fa-users-gear', perm: 'view_staff' },
+        { id: 'users-management', label: 'Quản Trị Viên & Nhân Sự', icon: 'fa-user-shield', perm: 'view_staff' },
         { id: 'permissions-config', label: 'Cấu Hình Phân Quyền', icon: 'fa-shield-halved', perm: 'config_permissions' }
     ];
 
@@ -2930,9 +3189,14 @@ function AdminTopbarView({
     staffUsers,
     rolesConfig,
     activeStaffId,
+    currentUser,
+    onNavigateTab,
     onSwitchActiveStaff,
     onLogout
 }) {
+    const activeStaff = staffUsers.find(s => s.id === activeStaffId) || staffUsers[0];
+    const activeRole = rolesConfig.find(role => role.id === activeStaff?.roleId);
+
     return (
         <header className="admin-topbar">
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
@@ -2940,9 +3204,53 @@ function AdminTopbarView({
             </div>
 
             <div className="topbar-actions">
-                <div className="quick-role-switcher" title="Chuyển nhanh tài khoản để kiểm tra phân quyền thực tế">
+                {/* Thẻ định danh tài khoản Quản trị / Sysadmin */}
+                <div
+                    className="admin-user-pill"
+                    onClick={() => onNavigateTab && onNavigateTab('users-management')}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '6px 14px',
+                        background: '#f8fafc',
+                        border: '1.5px solid var(--gold-primary)',
+                        borderRadius: '30px',
+                        boxShadow: '0 2px 8px rgba(212, 175, 55, 0.15)',
+                        cursor: 'pointer'
+                    }}
+                    title="Bấm để mở trang Danh sách Quản Trị Viên & Nhân Sự"
+                >
+                    <div
+                        className="user-avatar"
+                        style={{
+                            width: '32px',
+                            height: '32px',
+                            background: activeRole?.badgeColor || 'var(--gold-primary)',
+                            color: '#ffffff',
+                            fontWeight: 700,
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.85rem'
+                        }}
+                    >
+                        {currentUser?.name?.charAt(0) || activeStaff?.name?.charAt(0) || 'S'}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.2 }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--navy-dark)' }}>
+                            {currentUser?.name || activeStaff?.name || 'SYSADMIN'}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: activeRole?.badgeColor || 'var(--gold-dark)', fontWeight: 600 }}>
+                            {activeRole?.name || currentUser?.roleName || 'Quản Trị Viên'}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="quick-role-switcher" title="Chuyển nhanh vai trò nhân sự để kiểm tra ma trận phân quyền thực tế">
                     <i className="fa-solid fa-user-shield" style={{ color: 'var(--gold-dark)' }}></i>
-                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Vai trò:</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Chuyển vai trò:</span>
                     <select
                         id="activeRoleSelector"
                         value={activeStaffId}
@@ -3006,15 +3314,6 @@ function DashboardView({
     else if (periodFilter === 'Q3') targetMonths = [7, 8, 9];
     else if (periodFilter === 'Q4') targetMonths = [10, 11, 12];
 
-    const liveBookingAddOnRevenue = bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
-    const liveDepositAddOn = bookings.reduce((sum, b) => sum + (b.depositAmount || 0), 0);
-
-    let roomTypeMultiplier = 1.0;
-    if (roomTypeFilter === 'Deluxe') roomTypeMultiplier = 0.22;
-    else if (roomTypeFilter === 'Suite') roomTypeMultiplier = 0.28;
-    else if (roomTypeFilter === 'Executive') roomTypeMultiplier = 0.25;
-    else if (roomTypeFilter === 'Villa') roomTypeMultiplier = 0.25;
-
     let totalRev = 0;
     let totalRoomRev = 0;
     let totalServiceRev = 0;
@@ -3031,26 +3330,21 @@ function DashboardView({
             const d25 = historicalRevenue.monthly.find(x => x.year === 2025 && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
             const d26 = historicalRevenue.monthly.find(x => x.year === 2026 && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
 
-            monthTotal = (d24.total + d25.total + d26.total) * roomTypeMultiplier;
-            monthRoom = (d24.roomRevenue + d25.roomRevenue + d26.roomRevenue) * roomTypeMultiplier;
-            monthService = (d24.serviceRevenue + d25.serviceRevenue + d26.serviceRevenue) * roomTypeMultiplier;
+            monthTotal = (d24.total + d25.total + d26.total);
+            monthRoom = (d24.roomRevenue + d25.roomRevenue + d26.roomRevenue);
+            monthService = (d24.serviceRevenue + d25.serviceRevenue + d26.serviceRevenue);
             monthNights = (d24.nights + d25.nights + d26.nights);
-            monthDep = (d24.depositCollected + d25.depositCollected + d26.depositCollected) * roomTypeMultiplier;
+            monthDep = (d24.depositCollected + d25.depositCollected + d26.depositCollected);
             monthOcc = Math.round((d24.occ + d25.occ + d26.occ) / 3);
         } else {
             const y = parseInt(yearFilter, 10);
             const d = historicalRevenue.monthly.find(x => x.year === y && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
-            monthTotal = d.total * roomTypeMultiplier;
-            monthRoom = d.roomRevenue * roomTypeMultiplier;
-            monthService = d.serviceRevenue * roomTypeMultiplier;
+            monthTotal = d.total;
+            monthRoom = d.roomRevenue;
+            monthService = d.serviceRevenue;
             monthNights = d.nights;
-            monthDep = d.depositCollected * roomTypeMultiplier;
+            monthDep = d.depositCollected;
             monthOcc = d.occ;
-
-            if (y === 2026 && m === 10) {
-                monthTotal += (liveBookingAddOnRevenue * roomTypeMultiplier);
-                monthDep += (liveDepositAddOn * roomTypeMultiplier);
-            }
         }
 
         totalRev += monthTotal;
@@ -3075,6 +3369,7 @@ function DashboardView({
     const totalDepositHolding = bookings.filter(b => b.status === 'Chờ check-in' || b.status === 'Đã check-in')
                                         .reduce((sum, b) => sum + (b.depositAmount || 0), 0);
     const occRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
+    const liveBookingAddOnRevenue = bookings ? bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0) : 0;
 
     // Charts Initialization
     useEffect(() => {
@@ -3091,9 +3386,7 @@ function DashboardView({
         });
         const data2026 = targetMonths.map(m => {
             const item = historicalRevenue.monthly.find(x => x.year === 2026 && x.month === m);
-            let val = item ? item.total : 0;
-            if (m === 10) val += liveBookingAddOnRevenue;
-            return Math.round(val / 1000000);
+            return item ? Math.round(item.total / 1000000) : 0;
         });
 
         // 1. Line Chart
@@ -3179,13 +3472,32 @@ function DashboardView({
 
             let dLabels, dData, dColors;
             if (donutMode === 'room') {
-                dLabels = ['Presidential Villa', 'Executive Suite', 'Premier Family', 'Deluxe Ocean'];
-                dData = [36, 28, 22, 14];
-                dColors = ['#d4af37', '#0284c7', '#8b5cf6', '#10b981'];
+                const roomTypeCounts = {};
+                (bookings || []).forEach(b => {
+                    const r = (rooms || []).find(rm => rm.id === b.roomId);
+                    const type = r ? (r.type || r.name) : (b.roomName || 'Hạng phòng khác');
+                    roomTypeCounts[type] = (roomTypeCounts[type] || 0) + 1;
+                });
+                dLabels = Object.keys(roomTypeCounts);
+                dData = Object.values(roomTypeCounts);
+                if (dLabels.length === 0) {
+                    dLabels = ['Presidential Villa', 'Executive Suite', 'Standard / Superior'];
+                    dData = [1, 1, 1];
+                }
+                dColors = ['#d4af37', '#0284c7', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'];
             } else {
-                dLabels = ['VietQR (Napas 24/7)', 'Thẻ tín dụng POS', 'Tiền mặt tại quầy'];
-                dData = [65, 23, 12];
-                dColors = ['#10b981', '#3b82f6', '#f59e0b'];
+                const methodAmounts = {};
+                (transactions || []).forEach(t => {
+                    const m = t.method || 'VietQR';
+                    methodAmounts[m] = (methodAmounts[m] || 0) + (Number(t.amount) || 0);
+                });
+                dLabels = Object.keys(methodAmounts);
+                dData = Object.values(methodAmounts).map(v => Math.round(v / 1000000));
+                if (dLabels.length === 0) {
+                    dLabels = ['VietQR', 'Tiền mặt', 'Thẻ tín dụng'];
+                    dData = [1, 1, 1];
+                }
+                dColors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'];
             }
 
             chartDonutInstance.current = new window.Chart(chartDonutRef.current, {
@@ -3343,10 +3655,9 @@ function DashboardView({
         const d25 = historicalRevenue.monthly.find(x => x.year === 2025 && x.month === m) || { total: 0 };
         const d26 = historicalRevenue.monthly.find(x => x.year === 2026 && x.month === m) || { total: 0, nights: 0, occ: 0, adr: 0 };
 
-        let t24 = d24.total * roomTypeMultiplier;
-        let t25 = d25.total * roomTypeMultiplier;
-        let t26 = d26.total * roomTypeMultiplier;
-        if (m === 10) t26 += (liveBookingAddOnRevenue * roomTypeMultiplier);
+        let t24 = d24.total;
+        let t25 = d25.total;
+        let t26 = d26.total;
 
         grand24 += t24;
         grand25 += t25;
@@ -4260,9 +4571,9 @@ function StaffView({
             <div className="table-card">
                 <div className="table-header-box">
                     <div>
-                        <h3 className="table-title">Danh Sách Nhân Sự & Phân Quyền Vai Trò</h3>
+                        <h3 className="table-title">Danh Sách Quản Trị Viên & Nhân Sự Nội Bộ</h3>
                         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                            Quản lý tài khoản nội bộ, gán vai trò quyền hạn (MVC Architecture)
+                            Quản lý tài khoản quản trị viên, nhân sự và phân gán vai trò quyền hạn (MVC Architecture)
                         </p>
                     </div>
                     <div className="room-filter-bar">
@@ -4709,11 +5020,7 @@ function AuthModal({ onClose, onLoginSuccess, onRegisterSuccess }) {
                                     onChange={e => setLoginPassword(e.target.value)}
                                 />
                             </div>
-                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '14px', lineHeight: 1.5 }}>
-                                <i className="fa-solid fa-circle-info" style={{ color: 'var(--gold-dark)', marginRight: '6px' }}></i>
-                                Tài khoản được <strong>Sysadmin cấp quyền</strong> sẽ tự động vào Trang Quản Trị. Khách hàng thông thường sẽ đăng nhập vào hệ thống để đặt phòng & quản lý hồ sơ CCCD.
-                            </div>
-                            <button type="submit" className="btn btn-gold" style={{ width: '100%', marginTop: '5px' }}>
+                            <button type="submit" className="btn btn-gold" style={{ width: '100%', marginTop: '10px' }}>
                                 <i className="fa-solid fa-right-to-bracket"></i> Đăng Nhập Vào Hệ Thống
                             </button>
                         </form>
@@ -5913,7 +6220,7 @@ function App() {
                         onOpenAuthModal={() => ctrl.openModal('auth')}
                         onOpenCustomerProfile={() => ctrl.openModal('customerProfile')}
                         onOpenMyBookings={() => ctrl.openModal('myBookings')}
-                        onEnterAdmin={() => ctrl.setViewMode('admin')}
+                        onEnterAdmin={() => ctrl.handleSetViewMode('admin')}
                         onLogout={ctrl.handleLogout}
                     />
 
@@ -5949,6 +6256,8 @@ function App() {
                                 staffUsers={ctrl.staffUsers}
                                 rolesConfig={ctrl.rolesConfig}
                                 activeStaffId={ctrl.activeStaffId}
+                                currentUser={ctrl.currentUser}
+                                onNavigateTab={tab => ctrl.setAdminTab(tab)}
                                 onSwitchActiveStaff={id => {
                                     ctrl.setActiveStaffId(id);
                                     ctrl.addToast(

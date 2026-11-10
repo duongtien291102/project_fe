@@ -223,13 +223,14 @@ function startServer(port) {
         }
     });
 
-    server.listen(port, () => {
+    server.listen(port, '0.0.0.0', () => {
         console.log('\n  \x1b[32m\x1b[1mGRAND HOTEL & RESORTS - REACT MVC DEV SERVER\x1b[0m');
         console.log('  \x1b[90mChế độ Zero-Dependency (Không cần tải thêm thư viện ngoài)\x1b[0m\n');
         console.log(`  \x1b[32m➜\x1b[0m  \x1b[1mLocal:\x1b[0m   \x1b[36mhttp://localhost:${port}/\x1b[0m`);
+        console.log(`  \x1b[32m➜\x1b[0m  \x1b[1mNetwork:\x1b[0m \x1b[36mhttp://0.0.0.0:${port}/\x1b[0m`);
         console.log(`  \x1b[32m➜\x1b[0m  \x1b[1mWatch:\x1b[0m   Đang tự động theo dõi thay đổi trong \x1b[33msrc/models\x1b[0m, \x1b[33msrc/views\x1b[0m, \x1b[33msrc/controllers\x1b[0m\n`);
     });
 }
 
-const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 5555;
+const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 2902;
 startServer(DEFAULT_PORT);

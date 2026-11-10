@@ -226,11 +226,7 @@ function AuthModal({ onClose, onLoginSuccess, onRegisterSuccess }) {
                                     onChange={e => setLoginPassword(e.target.value)}
                                 />
                             </div>
-                            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', background: '#f8fafc', padding: '10px 14px', borderRadius: '8px', border: '1px solid #e2e8f0', marginBottom: '14px', lineHeight: 1.5 }}>
-                                <i className="fa-solid fa-circle-info" style={{ color: 'var(--gold-dark)', marginRight: '6px' }}></i>
-                                Tài khoản được <strong>Sysadmin cấp quyền</strong> sẽ tự động vào Trang Quản Trị. Khách hàng thông thường sẽ đăng nhập vào hệ thống để đặt phòng & quản lý hồ sơ CCCD.
-                            </div>
-                            <button type="submit" className="btn btn-gold" style={{ width: '100%', marginTop: '5px' }}>
+                            <button type="submit" className="btn btn-gold" style={{ width: '100%', marginTop: '10px' }}>
                                 <i className="fa-solid fa-right-to-bracket"></i> Đăng Nhập Vào Hệ Thống
                             </button>
                         </form>

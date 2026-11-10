@@ -197,22 +197,34 @@
         .nav-link::after { content: ''; position: absolute; bottom: 0; left: 0; width: 0%; height: 2px; background: var(--gold-primary); transition: var(--transition); }
         .nav-link:hover::after { width: 100%; }
 
-        .nav-actions { display: flex; align-items: center; gap: 15px; }
+        .nav-actions { display: flex; align-items: center; gap: 10px; }
 
         .user-pill {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 6px 14px;
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(212, 175, 55, 0.4);
-            border-radius: var(--radius-full);
+            gap: 8px;
+            height: 36px;
+            padding: 0 12px 0 6px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(212, 175, 55, 0.35);
+            border-radius: 20px;
             color: #ffffff;
-            font-size: 0.9rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            backdrop-filter: blur(8px);
+            user-select: none;
+        }
+        .user-pill:hover {
+            background: rgba(212, 175, 55, 0.12);
+            border-color: var(--gold-primary);
+            box-shadow: 0 2px 10px rgba(212, 175, 55, 0.25);
+            transform: translateY(-1px);
         }
         .user-avatar {
-            width: 32px;
-            height: 32px;
+            width: 24px;
+            height: 24px;
             border-radius: 50%;
             background: var(--gold-gradient);
             color: #0b111e;
@@ -220,7 +232,33 @@
             align-items: center;
             justify-content: center;
             font-weight: 700;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+            flex-shrink: 0;
+        }
+        .user-pill-badge {
+            color: var(--gold-primary);
+            font-size: 0.8rem;
+            opacity: 0.9;
+            margin-left: 2px;
+        }
+        .nav-actions .btn-sm {
+            height: 36px;
+            padding: 0 14px;
+            font-size: 0.82rem;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .nav-actions .btn-icon-round {
+            width: 36px;
+            height: 36px;
+            padding: 0;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
 
         /* Hero Section */
@@ -1047,6 +1085,14 @@
                     </div>
 
                     <div class="topbar-actions">
+                        <div class="admin-user-pill" id="adminUserPillBadge" style="display: flex; align-items: center; gap: 10px; padding: 6px 14px; background: #f8fafc; border: 1.5px solid var(--gold-primary); border-radius: 30px; box-shadow: 0 2px 8px rgba(212, 175, 55, 0.15);" title="Tài khoản Quản Trị Hệ Thống hiện tại">
+                            <div class="user-avatar" id="adminAvatarText" style="width: 32px; height: 32px; background: var(--gold-primary); color: #ffffff; font-weight: 700; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.85rem;">S</div>
+                            <div style="display: flex; flex-direction: column; line-height: 1.2;">
+                                <span id="adminNameText" style="font-size: 0.85rem; font-weight: 700; color: var(--navy-dark);">SYSADMIN</span>
+                                <span id="adminRoleText" style="font-size: 0.72rem; color: var(--gold-dark); font-weight: 600;">Quản Trị Viên</span>
+                            </div>
+                        </div>
+
                         <div class="quick-role-switcher" title="Chuyển nhanh tài khoản để kiểm tra phân quyền thực tế">
                             <i class="fa-solid fa-user-shield" style="color: var(--gold-dark);"></i>
                             <span style="font-size: 0.78rem; color: var(--text-secondary); font-weight:600;">Vai trò:</span>
@@ -1522,11 +1568,7 @@
                         <label>Mật Khẩu</label>
                         <input type="password" id="authPassword" placeholder="Nhập mật khẩu" required>
                     </div>
-                    <div style="font-size: 0.82rem; color: var(--text-secondary); background: #f8fafc; padding: 10px 14px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 14px; line-height: 1.5;">
-                        <i class="fa-solid fa-circle-info" style="color: var(--gold-dark); margin-right: 6px;"></i>
-                        Tài khoản được <strong>Sysadmin cấp quyền</strong> sẽ tự động vào Trang Quản Trị. Khách hàng thông thường sẽ đăng nhập để đặt phòng & quản lý hồ sơ CCCD.
-                    </div>
-                    <button type="submit" class="btn btn-gold" style="width: 100%; margin-top: 5px;">
+                    <button type="submit" class="btn btn-gold" style="width: 100%; margin-top: 10px;">
                         <i class="fa-solid fa-right-to-bracket"></i> Đăng Nhập Vào Hệ Thống
                     </button>
                 </form>
@@ -2758,13 +2800,14 @@
             const rolesList = getRolesConfig ? getRolesConfig() : [];
 
             // 1. Kiểm tra quyền nhân sự / quản trị từ Sysadmin
+            const isRootAdmin = input === 'admin' || input === 'sysadmin';
             const matchedStaff = staffList.find(s => 
                 (s.email && s.email.toLowerCase() === input) ||
                 (s.id && s.id.toLowerCase() === input) ||
                 (s.phone && s.phone === input) ||
                 (s.name && s.name.toLowerCase() === input) ||
-                (input === 'admin' && s.roleId === 'admin')
-            );
+                (isRootAdmin && s.roleId === 'admin')
+            ) || (isRootAdmin ? staffList[0] : null);
 
             if (matchedStaff) {
                 if (matchedStaff.status === 'locked') {
@@ -2963,40 +3006,34 @@
             const user = getCurrentUser();
             const container = document.getElementById('navUserArea');
 
-            if (user && user.role === 'customer') {
+            // Quyền user / customer TUYỆT ĐỐI KHÔNG phải là admin và không bao giờ thấy nút vào trang quản trị
+            const isCustomer = !user || user.role === 'customer' || user.role === 'user';
+            const isAdmin = !isCustomer && (
+                user.hasAdminAccess === true ||
+                user.role === 'staff' ||
+                user.role === 'admin'
+            );
+
+            if (isAdmin) {
                 container.innerHTML = `
-                    <div class="user-pill" style="cursor:pointer;" onclick="openCustomerProfileModal()" title="Xem và cập nhật CCCD">
-                        <div class="user-avatar">${user.avatar}</div>
-                        <span>${user.name}</span>
-                        <i class="fa-solid fa-id-card" style="color:var(--gold-primary); font-size:0.9rem;" title="Đã định danh CCCD"></i>
-                    </div>
-                    <button class="btn btn-sm btn-outline-gold" onclick="openCustomerProfileModal()">
-                        <i class="fa-solid fa-address-card"></i> Hồ sơ CCCD
+                    <button class="btn btn-sm btn-gold" onclick="renderAdminView()" title="Vào Bảng Điều Khiển Quản Trị" style="font-weight: 700;">
+                        <i class="fa-solid fa-gauge-high"></i> Vào Trang Quản Trị
                     </button>
-                    <button class="btn btn-sm btn-outline-gold" onclick="openMyBookingsModal()">
-                        <i class="fa-solid fa-list-check"></i> Đơn của tôi
-                    </button>
-                    <button class="btn btn-sm btn-dark" onclick="logout()">
-                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    <button class="btn btn-sm btn-dark" onclick="logout()" title="Đăng xuất khỏi hệ thống">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i> Đăng xuất
                     </button>
                 `;
-            } else if (user && (user.hasAdminAccess || user.role === 'staff')) {
+            } else if (user) {
                 container.innerHTML = `
-                    <div class="user-pill" onclick="openCustomerProfileModal()" title="Xem và cập nhật CCCD" style="cursor: pointer;">
+                    <div class="user-pill" onclick="openCustomerProfileModal()" title="Bấm để xem và cập nhật hồ sơ CCCD">
                         <div class="user-avatar">${user.avatar || user.name.charAt(0)}</div>
                         <span>${user.name}</span>
-                        <span style="font-size: 0.72rem; background: var(--gold-primary); color: #000; padding: 2px 6px; border-radius: 4px; font-weight: 700; margin-left: 4px;">${user.roleName || 'Quản trị'}</span>
+                        <i class="fa-solid fa-id-card user-pill-badge" title="Khách Hàng (Đã định danh CCCD)"></i>
                     </div>
-                    <button class="btn btn-sm btn-gold" onclick="renderAdminView()" title="Vào Bảng Điều Khiển Quản Trị">
-                        <i class="fa-solid fa-gauge-high"></i> Trang Quản Trị
+                    <button class="btn btn-sm btn-outline-gold" onclick="openMyBookingsModal()" title="Xem lịch sử đặt phòng của tôi">
+                        <i class="fa-solid fa-list-check"></i> Lịch sử đặt phòng
                     </button>
-                    <button class="btn btn-sm btn-outline-gold" onclick="openCustomerProfileModal()">
-                        <i class="fa-solid fa-address-card"></i> Hồ sơ CCCD
-                    </button>
-                    <button class="btn btn-sm btn-outline-gold" onclick="openMyBookingsModal()">
-                        <i class="fa-solid fa-list-check"></i> Đơn của tôi
-                    </button>
-                    <button class="btn btn-sm btn-dark" onclick="logout()" title="Đăng xuất">
+                    <button class="btn btn-sm btn-dark btn-icon-round" onclick="logout()" title="Đăng xuất khỏi tài khoản">
                         <i class="fa-solid fa-arrow-right-from-bracket"></i>
                     </button>
                 `;
@@ -4875,8 +4912,15 @@
             if (!localStorage.getItem(STORAGE_KEYS.TRANSACTIONS)) saveTransactions(INITIAL_TRANSACTIONS);
             if (!localStorage.getItem(STORAGE_KEYS.HISTORICAL_REVENUE)) saveHistoricalRevenue(generateDefaultHistoricalRevenue());
 
-            renderLandingAuthArea();
-            renderLandingRooms();
+            const cur = getCurrentUser();
+            const isCustomer = !cur || cur.role === 'customer' || cur.role === 'user';
+            const isAdmin = !isCustomer && (cur.hasAdminAccess === true || cur.role === 'staff' || cur.role === 'admin');
+            if (isAdmin) {
+                renderAdminView();
+            } else {
+                renderLandingAuthArea();
+                renderLandingRooms();
+            }
 
             const today = new Date();
             const tomorrow = new Date();
