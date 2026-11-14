@@ -51,86 +51,33 @@ export const PERMISSION_GROUPS = [
     }
 ];
 
-export const INITIAL_ROLES = [
-    {
-        id: 'admin',
-        name: 'Giám Đốc / Tổng Quản Lý',
-        badgeColor: '#dc2626',
-        description: 'Toàn quyền truy cập và cấu hình toàn bộ hệ thống khách sạn',
-        permissions: {
-            'view_kpi': true, 'view_revenue': true, 'manage_rooms': true, 'room_checkin_checkout': true,
-            'room_cleaning': true, 'manage_bookings': true, 'create_booking': true, 'cancel_booking': true,
-            'manage_finances': true, 'view_staff': true, 'manage_staff': true, 'config_permissions': true, 'system_reset': true
-        }
-    },
-    {
-        id: 'manager',
-        name: 'Quản Lý Lễ Tân',
-        badgeColor: '#d97706',
-        description: 'Quản lý toàn bộ hoạt động tiền sảnh, buồng phòng và lễ tân',
-        permissions: {
-            'view_kpi': true, 'view_revenue': true, 'manage_rooms': true, 'room_checkin_checkout': true,
-            'room_cleaning': true, 'manage_bookings': true, 'create_booking': true, 'cancel_booking': true,
-            'manage_finances': true, 'view_staff': true, 'manage_staff': false, 'config_permissions': false, 'system_reset': false
-        }
-    },
-    {
-        id: 'receptionist',
-        name: 'Nhân Viên Lễ Tân',
-        badgeColor: '#2563eb',
-        description: 'Thực hiện đặt phòng, check-in, check-out và thu tiền',
-        permissions: {
-            'view_kpi': true, 'view_revenue': false, 'manage_rooms': false, 'room_checkin_checkout': true,
-            'room_cleaning': false, 'manage_bookings': true, 'create_booking': true, 'cancel_booking': false,
-            'manage_finances': true, 'view_staff': false, 'manage_staff': false, 'config_permissions': false, 'system_reset': false
-        }
-    },
-    {
-        id: 'cashier',
-        name: 'Kế Toán / Thủ Quỹ',
-        badgeColor: '#7c3aed',
-        description: 'Kiểm soát doanh thu, xuất hóa đơn quyết toán và dòng tiền',
-        permissions: {
-            'view_kpi': true, 'view_revenue': true, 'manage_rooms': false, 'room_checkin_checkout': true,
-            'room_cleaning': false, 'manage_bookings': true, 'create_booking': false, 'cancel_booking': false,
-            'manage_finances': true, 'view_staff': false, 'manage_staff': false, 'config_permissions': false, 'system_reset': false
-        }
-    },
-    {
-        id: 'housekeeping',
-        name: 'Quản Lý Buồng Phòng',
-        badgeColor: '#059669',
-        description: 'Kiểm tra trạng thái dọn dẹp phòng sẵn sàng đón khách',
-        permissions: {
-            'view_kpi': false, 'view_revenue': false, 'manage_rooms': false, 'room_checkin_checkout': false,
-            'room_cleaning': true, 'manage_bookings': false, 'create_booking': false, 'cancel_booking': false,
-            'manage_finances': false, 'view_staff': false, 'manage_staff': false, 'config_permissions': false, 'system_reset': false
-        }
-    }
-];
+// Zero-Mock: Dữ liệu vai trò và nhân sự khởi tạo rỗng, 100% nạp từ MongoDB Atlas
+export const INITIAL_ROLES = [];
 
-export const INITIAL_STAFF_USERS = [
-    { id: 'NV-001', name: 'Hoàng Minh Quân', email: 'quan.hoang@grandhotel.vn', phone: '0903 111 222', roleId: 'admin', status: 'active', lastLogin: 'Hôm nay, 16:30' },
-    { id: 'NV-002', name: 'Nguyễn Thu Thảo', email: 'thao.nguyen@grandhotel.vn', phone: '0918 333 444', roleId: 'manager', status: 'active', lastLogin: 'Hôm nay, 15:45' },
-    { id: 'NV-003', name: 'Lê Hoàng Nam', email: 'nam.le@grandhotel.vn', phone: '0982 555 666', roleId: 'receptionist', status: 'active', lastLogin: 'Hôm nay, 14:10' },
-    { id: 'NV-004', name: 'Phạm Đăng Khoa', email: 'khoa.pham@grandhotel.vn', phone: '0945 888 999', roleId: 'cashier', status: 'active', lastLogin: 'Hôm nay, 11:00' },
-    { id: 'NV-005', name: 'Trần Thị Lan', email: 'lan.tran@grandhotel.vn', phone: '0937 777 888', roleId: 'housekeeping', status: 'active', lastLogin: 'Hôm qua, 18:20' }
-];
+export const INITIAL_STAFF_USERS = [];
 
 export function hasPermission(staffUser, rolesConfig, permKey) {
     if (!staffUser) return false;
-    const role = rolesConfig.find(r => r.id === staffUser.roleId);
-    return !!(role && role.permissions && role.permissions[permKey]);
+    const role = rolesConfig.find(r => r.id === staffUser.roleId)
+        || rolesConfig.find(r => Array.isArray(staffUser.roles) && staffUser.roles.includes(r.id));
+    if (role && role.permissions && role.permissions[permKey] !== undefined) {
+        return !!role.permissions[permKey];
+    }
+    if (staffUser.effectivePermissions && staffUser.effectivePermissions[permKey] !== undefined) {
+        return !!staffUser.effectivePermissions[permKey];
+    }
+    return false;
 }
 
 export function hasAdminAccess(user, staffUsers, rolesConfig) {
     if (!user) return false;
     if (user.role === 'customer' && !user.hasAdminAccess) return false;
     const staff = staffUsers.find(s =>
-        (s.id === user.id || s.id === user.staffId || s.email === user.email || (user.username === 'admin' && s.roleId === 'admin')) &&
+        (s.id === user.id || s.id === user.staffId || s.email === user.email) &&
         s.status === 'active'
     );
     if (!staff) return false;
-    const role = rolesConfig.find(r => r.id === staff.roleId);
+    const role = rolesConfig.find(r => r.id === staff.roleId)
+        || rolesConfig.find(r => Array.isArray(staff.roles) && staff.roles.includes(r.id));
     return !!(role && role.permissions && Object.values(role.permissions).some(Boolean));
 }

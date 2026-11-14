@@ -25,7 +25,7 @@ export function buildDynamicHistoricalRevenue(transactions = [], bookings = [], 
         return generateDefaultHistoricalRevenue();
     }
 
-    const roomCount = (rooms && rooms.length > 0) ? rooms.length : 12;
+    const roomCount = (rooms && rooms.length > 0) ? rooms.length : 0;
     const monthlyMap = new Map();
 
     // Duyệt qua tất cả giao dịch thực tế lấy từ MongoDB Atlas
@@ -124,17 +124,8 @@ export function buildDynamicHistoricalRevenue(transactions = [], bookings = [], 
             const key = `${y}-${m}`;
             if (monthlyMap.has(key)) {
                 const item = monthlyMap.get(key);
-                // Nếu transactions không tách rõ service, phân bổ tỷ lệ chuẩn khách sạn (82% phòng, 18% dịch vụ)
-                if (item.serviceRevenue === 0 && item.roomRevenue > 0) {
-                    item.roomRevenue = Math.round(item.total * 0.82);
-                    item.serviceRevenue = item.total - item.roomRevenue;
-                }
                 const maxNights = roomCount * 30;
-                // Nếu chưa có booking tương ứng thì ước tính số đêm từ số lượng giao dịch
-                if (item.nights === 0) {
-                    item.nights = Math.max(1, Math.round(item.roomRevenue / 2500000));
-                }
-                item.occ = Math.min(100, Math.round((item.nights / maxNights) * 100));
+                item.occ = maxNights > 0 ? Math.min(100, Math.round((item.nights / maxNights) * 100)) : 0;
                 item.adr = item.nights > 0 ? Math.round(item.roomRevenue / item.nights) : 0;
                 fullMonthly.push(item);
             } else {

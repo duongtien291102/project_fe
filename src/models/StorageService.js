@@ -6,15 +6,15 @@
  */
 
 export const STORAGE_KEYS = {
-    ROOMS: 'grand_hotel_rooms_v2',
-    BOOKINGS: 'grand_hotel_bookings_v2',
-    USER: 'grand_hotel_current_user_v2',
-    STAFF_USERS: 'grand_hotel_staff_users_v2',
-    ROLES_CONFIG: 'grand_hotel_roles_config_v2',
-    ACTIVE_STAFF_ID: 'grand_hotel_active_staff_id_v2',
-    TRANSACTIONS: 'grand_hotel_financial_transactions_v2',
-    HISTORICAL_REVENUE: 'grand_hotel_historical_revenue_v3',
-    CUSTOMERS: 'grand_hotel_registered_customers_v2'
+    ROOMS: 'grand_hotel_rooms_db_v1',
+    BOOKINGS: 'grand_hotel_bookings_db_v1',
+    USER: 'grand_hotel_current_user_db_v1',
+    AUTH_TOKEN: 'grand_hotel_auth_token_v1',
+    STAFF_USERS: 'grand_hotel_staff_users_db_v1',
+    ROLES_CONFIG: 'grand_hotel_roles_config_db_v1',
+    ACTIVE_STAFF_ID: 'grand_hotel_active_staff_id_db_v1',
+    TRANSACTIONS: 'grand_hotel_financial_transactions_db_v1',
+    HISTORICAL_REVENUE: 'grand_hotel_historical_revenue_db_v1'
 };
 
 export const StorageService = {

@@ -67,7 +67,13 @@ export default function LandingRoomsView({
                         <div key={room.id} className="room-card">
                             <div className="room-status-top">{badgeNode}</div>
                             <div className="room-img-wrap">
-                                <img src={room.image} alt={room.name} className="room-img" />
+                                {room.image ? (
+                                    <img src={room.image} alt={room.name} className="room-img" />
+                                ) : (
+                                    <div className="room-img" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#e2e8f0', color: '#64748b', fontSize: '0.85rem' }}>
+                                        <span>Chưa có ảnh phòng</span>
+                                    </div>
+                                )}
                                 <div className="room-overlay">
                                     <span className="room-num">
                                         <i className="fa-solid fa-key" style={{ color: 'var(--gold-primary)' }}></i> PHÒNG {room.id}

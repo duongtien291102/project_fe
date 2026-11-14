@@ -15,7 +15,8 @@ export default function AdminSidebarView({
     onTabChange,
     onViewCustomerLanding,
     onResetDemoData,
-    checkPermission
+    checkPermission,
+    onLogout
 }) {
     const canAccessTab = item => {
         if (!checkPermission) return true;
@@ -38,7 +39,7 @@ export default function AdminSidebarView({
     };
 
     const navItems = [
-        { id: 'dashboard', label: 'Dashboard Doanh Thu (3 Năm)', icon: 'fa-chart-line', perm: 'view_kpi' },
+        { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-line', perm: 'view_kpi' },
         { id: 'rooms-management', label: 'Quản Lý Phòng', icon: 'fa-door-open', perm: null },
         { id: 'bookings-management', label: 'Quản Lý Đặt Phòng & CCCD', icon: 'fa-book-bookmark', perm: 'manage_bookings' },
         { id: 'financial-ledger', label: 'Sổ Quỹ & Thu Chi', icon: 'fa-money-check-dollar', perm: 'manage_finances' },
@@ -88,7 +89,7 @@ export default function AdminSidebarView({
             <div className="sidebar-bottom">
                 <button
                     className="btn btn-outline-gold"
-                    style={{ width: '100%', fontSize: '0.85rem', marginBottom: canResetSystem ? '10px' : '0' }}
+                    style={{ width: '100%', fontSize: '0.85rem', marginBottom: '8px' }}
                     onClick={onViewCustomerLanding}
                 >
                     <i className="fa-solid fa-arrow-left"></i> Xem Trang Khách
@@ -96,12 +97,43 @@ export default function AdminSidebarView({
                 {canResetSystem && (
                     <button
                         className="btn btn-dark"
-                        style={{ width: '100%', fontSize: '0.85rem', border: '1px solid rgba(255,255,255,0.15)' }}
+                        style={{ width: '100%', fontSize: '0.85rem', marginBottom: '8px', border: '1px solid rgba(255,255,255,0.15)' }}
                         onClick={onResetDemoData}
                     >
                         <i className="fa-solid fa-rotate"></i> Reset Dữ Liệu Gốc
                     </button>
                 )}
+                <button
+                    className="btn"
+                    style={{
+                        width: '100%',
+                        fontSize: '0.85rem',
+                        background: 'rgba(239, 68, 68, 0.12)',
+                        color: '#f87171',
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        fontWeight: 600,
+                        padding: '9px 12px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease'
+                    }}
+                    onMouseEnter={e => {
+                        e.currentTarget.style.background = '#dc2626';
+                        e.currentTarget.style.color = '#ffffff';
+                    }}
+                    onMouseLeave={e => {
+                        e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)';
+                        e.currentTarget.style.color = '#f87171';
+                    }}
+                    onClick={onLogout}
+                    title="Đăng xuất khỏi hệ thống"
+                >
+                    <i className="fa-solid fa-arrow-right-from-bracket"></i> Đăng Xuất
+                </button>
             </div>
         </aside>
     );

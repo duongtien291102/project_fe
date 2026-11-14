@@ -46,14 +46,22 @@ export default function DashboardView({
     let totalOccSum = 0;
     const countMonths = targetMonths.length;
 
+    let filtered24 = 0;
+    let filtered25 = 0;
+    let filtered26 = 0;
+
     targetMonths.forEach(m => {
+        const d24 = historicalRevenue.monthly.find(x => x.year === 2024 && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
+        const d25 = historicalRevenue.monthly.find(x => x.year === 2025 && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
+        const d26 = historicalRevenue.monthly.find(x => x.year === 2026 && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
+
+        filtered24 += d24.total;
+        filtered25 += d25.total;
+        filtered26 += d26.total;
+
         let monthTotal = 0, monthRoom = 0, monthService = 0, monthNights = 0, monthDep = 0, monthOcc = 0;
 
         if (yearFilter === 'ALL') {
-            const d24 = historicalRevenue.monthly.find(x => x.year === 2024 && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
-            const d25 = historicalRevenue.monthly.find(x => x.year === 2025 && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
-            const d26 = historicalRevenue.monthly.find(x => x.year === 2026 && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
-
             monthTotal = (d24.total + d25.total + d26.total);
             monthRoom = (d24.roomRevenue + d25.roomRevenue + d26.roomRevenue);
             monthService = (d24.serviceRevenue + d25.serviceRevenue + d26.serviceRevenue);
@@ -62,7 +70,7 @@ export default function DashboardView({
             monthOcc = Math.round((d24.occ + d25.occ + d26.occ) / 3);
         } else {
             const y = parseInt(yearFilter, 10);
-            const d = historicalRevenue.monthly.find(x => x.year === y && x.month === m) || { total: 0, roomRevenue: 0, serviceRevenue: 0, nights: 0, depositCollected: 0, occ: 0 };
+            const d = y === 2024 ? d24 : (y === 2025 ? d25 : d26);
             monthTotal = d.total;
             monthRoom = d.roomRevenue;
             monthService = d.serviceRevenue;
@@ -79,6 +87,25 @@ export default function DashboardView({
         totalOccSum += monthOcc;
     });
 
+    const yoyGrowthText = (() => {
+        if (yearFilter === '2024') return 'Năm Cơ Sở';
+        if (yearFilter === '2025') {
+            if (filtered24 <= 0) return 'Chưa có dữ liệu 2024';
+            const pct = (((filtered25 - filtered24) / filtered24) * 100).toFixed(1);
+            return `${Number(pct) >= 0 ? '+' : ''}${pct}% vs 2024`;
+        }
+        if (yearFilter === '2026') {
+            if (filtered25 <= 0) return 'Dữ liệu thực tế 2026';
+            const pct = (((filtered26 - filtered25) / filtered25) * 100).toFixed(1);
+            return `${Number(pct) >= 0 ? '+' : ''}${pct}% YoY`;
+        }
+        if (filtered24 > 0) {
+            const pct = (((filtered26 - filtered24) / filtered24) * 100).toFixed(1);
+            return `${Number(pct) >= 0 ? '+' : ''}${pct}% Lũy Kế`;
+        }
+        return 'Tổng Hợp 3 Năm';
+    })();
+
     const avgOcc = countMonths > 0 ? Math.round(totalOccSum / countMonths) : 0;
     const adr = totalNights > 0 ? Math.round(totalRev / totalNights) : 0;
     const revPar = Math.round(adr * (avgOcc / 100));
@@ -93,7 +120,6 @@ export default function DashboardView({
     const totalDepositHolding = bookings.filter(b => b.status === 'Chờ check-in' || b.status === 'Đã check-in')
                                         .reduce((sum, b) => sum + (b.depositAmount || 0), 0);
     const occRate = totalRooms > 0 ? Math.round((occupiedRooms / totalRooms) * 100) : 0;
-    const liveBookingAddOnRevenue = bookings ? bookings.reduce((sum, b) => sum + (b.totalAmount || 0), 0) : 0;
 
     // Charts Initialization
     useEffect(() => {
@@ -194,7 +220,8 @@ export default function DashboardView({
                 chartDonutInstance.current.destroy();
             }
 
-            let dLabels, dData, dColors;
+            let dLabels = [], dData = [], dColors = [];
+            let hasDonutData = false;
             if (donutMode === 'room') {
                 const roomTypeCounts = {};
                 (bookings || []).forEach(b => {
@@ -204,10 +231,7 @@ export default function DashboardView({
                 });
                 dLabels = Object.keys(roomTypeCounts);
                 dData = Object.values(roomTypeCounts);
-                if (dLabels.length === 0) {
-                    dLabels = ['Presidential Villa', 'Executive Suite', 'Standard / Superior'];
-                    dData = [1, 1, 1];
-                }
+                hasDonutData = dLabels.length > 0;
                 dColors = ['#d4af37', '#0284c7', '#8b5cf6', '#10b981', '#f59e0b', '#ec4899'];
             } else {
                 const methodAmounts = {};
@@ -216,12 +240,15 @@ export default function DashboardView({
                     methodAmounts[m] = (methodAmounts[m] || 0) + (Number(t.amount) || 0);
                 });
                 dLabels = Object.keys(methodAmounts);
-                dData = Object.values(methodAmounts).map(v => Math.round(v / 1000000));
-                if (dLabels.length === 0) {
-                    dLabels = ['VietQR', 'Tiền mặt', 'Thẻ tín dụng'];
-                    dData = [1, 1, 1];
-                }
+                dData = Object.values(methodAmounts);
+                hasDonutData = dLabels.length > 0 && dData.some(v => v > 0);
                 dColors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'];
+            }
+
+            if (!hasDonutData) {
+                dLabels = ['Chưa có dữ liệu'];
+                dData = [1];
+                dColors = ['#e2e8f0'];
             }
 
             chartDonutInstance.current = new window.Chart(chartDonutRef.current, {
@@ -245,7 +272,15 @@ export default function DashboardView({
                         },
                         tooltip: {
                             callbacks: {
-                                label: ctx => `${ctx.label}: ${ctx.raw}% doanh thu`
+                                label: ctx => {
+                                    if (!hasDonutData) return 'Chưa có dữ liệu thực tế';
+                                    const sum = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = sum > 0 ? Math.round((ctx.raw / sum) * 100) : 0;
+                                    if (donutMode === 'room') {
+                                        return `${ctx.label}: ${ctx.raw} đơn (${pct}%)`;
+                                    }
+                                    return `${ctx.label}: ${formatVND(ctx.raw)} (${pct}%)`;
+                                }
                             }
                         }
                     },
@@ -258,7 +293,7 @@ export default function DashboardView({
             if (chartTrendInstance.current) chartTrendInstance.current.destroy();
             if (chartDonutInstance.current) chartDonutInstance.current.destroy();
         };
-    }, [yearFilter, periodFilter, roomTypeFilter, donutMode, historicalRevenue, liveBookingAddOnRevenue, canViewRev]);
+    }, [yearFilter, periodFilter, roomTypeFilter, donutMode, historicalRevenue, bookings, rooms, transactions, canViewRev]);
 
     // Export Excel via SheetJS
     const handleExportExcel = mode => {
@@ -289,7 +324,7 @@ export default function DashboardView({
                 ]
             ];
 
-            let tot24 = 0, tot25 = 0, tot26 = 0, totNights26 = 0;
+            let tot24 = 0, tot25 = 0, tot26 = 0, totNights26 = 0, totOcc26 = 0;
             for (let m = 1; m <= 12; m++) {
                 const d24 = historicalRevenue.monthly.find(x => x.year === 2024 && x.month === m) || { total: 0 };
                 const d25 = historicalRevenue.monthly.find(x => x.year === 2025 && x.month === m) || { total: 0 };
@@ -298,12 +333,12 @@ export default function DashboardView({
                 let t24 = d24.total;
                 let t25 = d25.total;
                 let t26 = d26.total;
-                if (m === 10) t26 += liveBookingAddOnRevenue;
 
                 tot24 += t24;
                 tot25 += t25;
                 tot26 += t26;
                 totNights26 += d26.nights;
+                totOcc26 += d26.occ || 0;
 
                 const g25_24 = t24 > 0 ? (((t25 - t24) / t24) * 100).toFixed(1) + '%' : 'N/A';
                 const g26_25 = t25 > 0 ? (((t26 - t25) / t25) * 100).toFixed(1) + '%' : 'N/A';
@@ -317,9 +352,10 @@ export default function DashboardView({
             const grandG25_24 = tot24 > 0 ? (((tot25 - tot24) / tot24) * 100).toFixed(1) + '%' : 'N/A';
             const grandG26_25 = tot25 > 0 ? (((tot26 - tot25) / tot25) * 100).toFixed(1) + '%' : 'N/A';
             const grandADR = totNights26 > 0 ? Math.round(tot26 / totNights26) : 0;
+            const excelGrandOcc26 = Math.round(totOcc26 / 12);
 
             summarySheetData.push([
-                "TỔNG CỘNG CẢ NĂM", tot24, tot25, tot26, grandG25_24, grandG26_25, totNights26, "88.5%", grandADR
+                "TỔNG CỘNG CẢ NĂM", tot24, tot25, tot26, grandG25_24, grandG26_25, totNights26, `${excelGrandOcc26}%`, grandADR
             ]);
 
             const wsSummary = XLSX.utils.aoa_to_sheet(summarySheetData);
@@ -328,26 +364,35 @@ export default function DashboardView({
             ];
             XLSX.utils.book_append_sheet(wb, wsSummary, "BaoCao_TongHop_3Nam");
 
-            // Sheet 2
-            const liveTx = bookings.map((b, idx) => ({
-                id: `TX-2610${String(idx + 1).padStart(2, '0')}`,
-                bookingId: b.id,
-                date: (b.createdAt || '2026-10-10') + ' 10:00',
-                year: 2026,
-                customerName: b.customerName,
-                cccd: b.cccd || '---',
-                phone: b.phone || '---',
-                roomName: b.roomName,
-                nights: b.nights || 1,
-                roomAmount: (b.totalAmount || 0) - (b.minibar || 0),
-                serviceAmount: b.minibar || 0,
-                depositAmount: b.depositAmount || 0,
-                totalAmount: b.totalAmount || 0,
-                method: b.depositMethod || 'VietQR',
-                status: b.status === 'Đã hoàn thành' ? 'Đã thanh toán đủ' : (b.status === 'Đã check-in' ? 'Đã cọc - Đang ở' : 'Đã cọc 50%')
-            }));
-
-            const allTx = [...(historicalRevenue.sampleTransactions || []), ...liveTx];
+            // Sheet 2: Chi tiết giao dịch thực tế
+            const bookingMap = new Map((bookings || []).map(b => [b.id, b]));
+            const allTx = (transactions || []).map(t => {
+                const b = bookingMap.get(t.bookingId);
+                const dateStr = t.date || t.createdAt || '';
+                const yearMatch = String(dateStr).match(/(20\d{2})/);
+                const parsedYear = t.year || (yearMatch ? Number(yearMatch[1]) : new Date().getFullYear());
+                const nights = b?.nights || 1;
+                const serviceAmount = b?.minibar || 0;
+                const totalAmount = b?.totalAmount ?? t.amount ?? 0;
+                const roomAmount = Math.max(0, totalAmount - serviceAmount);
+                return {
+                    id: t.id || '',
+                    bookingId: t.bookingId || '',
+                    date: dateStr || '---',
+                    year: parsedYear,
+                    customerName: t.customerName || b?.customerName || '---',
+                    cccd: b?.cccd || '---',
+                    phone: b?.phone || '---',
+                    roomName: b?.roomName || '---',
+                    nights,
+                    roomAmount,
+                    serviceAmount,
+                    depositAmount: b?.depositAmount || 0,
+                    totalAmount,
+                    method: t.method || '---',
+                    status: b?.status || t.status || t.type || 'Đã ghi nhận'
+                };
+            });
             const txSheetData = [
                 ["Mã Giao Dịch", "Mã Booking", "Thời Gian", "Năm", "Họ Tên Khách", "Số CCCD", "Số ĐT", "Hạng Phòng", "Đêm", "Tiền Phòng", "Dịch Vụ", "Tiền Cọc", "Tổng Tiền", "Phương Thức", "Trạng Thái"]
             ];
@@ -372,7 +417,7 @@ export default function DashboardView({
     };
 
     // Matrix rows computation
-    let grand24 = 0, grand25 = 0, grand26 = 0, grandNights26 = 0;
+    let grand24 = 0, grand25 = 0, grand26 = 0, grandNights26 = 0, grandOccSum26 = 0;
     const matrixRows = [];
     for (let m = 1; m <= 12; m++) {
         const d24 = historicalRevenue.monthly.find(x => x.year === 2024 && x.month === m) || { total: 0 };
@@ -387,6 +432,7 @@ export default function DashboardView({
         grand25 += t25;
         grand26 += t26;
         grandNights26 += d26.nights;
+        grandOccSum26 += d26.occ || 0;
 
         const growth26_25 = t25 > 0 ? (((t26 - t25) / t25) * 100).toFixed(1) : 0;
         matrixRows.push({
@@ -401,6 +447,7 @@ export default function DashboardView({
     }
     const grandGrowth = grand25 > 0 ? (((grand26 - grand25) / grand25) * 100).toFixed(1) : 0;
     const grandADR = grandNights26 > 0 ? Math.round(grand26 / grandNights26) : 0;
+    const grandOcc26 = Math.round(grandOccSum26 / 12);
 
     return (
         <div id="dashboard" className="admin-page-panel active">
@@ -482,7 +529,7 @@ export default function DashboardView({
                             </div>
                             <div>
                                 <span className="rev-kpi-badge positive">
-                                    <i className="fa-solid fa-arrow-trend-up"></i> {yearFilter === '2026' ? '+22.0% YoY' : yearFilter === '2025' ? '+32.4% vs 2024' : yearFilter === '2024' ? 'Năm Cơ Sở' : '+61.5% Lũy Kế'}
+                                    <i className="fa-solid fa-arrow-trend-up"></i> {yoyGrowthText}
                                 </span>
                                 <div className="rev-kpi-sub">Lũy kế theo bộ lọc</div>
                             </div>
@@ -644,7 +691,7 @@ export default function DashboardView({
                                     <td><strong>{formatVND(grand26)}</strong></td>
                                     <td><span className="growth-badge-up"><i className="fa-solid fa-arrow-up"></i> +{grandGrowth}%</span></td>
                                     <td>{grandNights26.toLocaleString('vi-VN')} đêm</td>
-                                    <td>88.5%</td>
+                                    <td>{grandOcc26}%</td>
                                     <td>{formatVND(grandADR)}</td>
                                 </tr>
                             </tbody>

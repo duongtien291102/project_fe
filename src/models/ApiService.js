@@ -5,6 +5,8 @@
  * Cầu nối giao tiếp HTTP giữa Frontend React và Backend Spring Boot + MongoDB Atlas
  */
 
+import { StorageService, STORAGE_KEYS } from './StorageService.js';
+
 const getApiBaseUrl = () => {
     if (typeof window !== 'undefined' && window.location && window.location.hostname) {
         return `http://${window.location.hostname}:2402/api`;
@@ -14,15 +16,116 @@ const getApiBaseUrl = () => {
 
 export const API_BASE_URL = getApiBaseUrl();
 
+function getAuthHeaders(extraHeaders = {}) {
+    const token = typeof StorageService !== 'undefined'
+        ? StorageService.get(STORAGE_KEYS.AUTH_TOKEN, null)
+        : null;
+    return {
+        ...extraHeaders,
+        ...(token ? { Authorization: `Bearer ${token}` } : {})
+    };
+}
+
 export const ApiService = {
+    async login(usernameOrEmail, password) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ usernameOrEmail, password })
+            });
+            const json = await res.json().catch(() => ({}));
+            return {
+                ok: res.ok && json.success !== false,
+                data: json.data || null,
+                message: json.message || (res.ok ? 'Thành công' : `HTTP ${res.status}`)
+            };
+        } catch (err) {
+            return {
+                ok: false,
+                data: null,
+                message: 'Không thể kết nối tới máy chủ Backend.'
+            };
+        }
+    },
+
+    async register(payload) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const json = await res.json().catch(() => ({}));
+            return {
+                ok: res.ok && json.success !== false,
+                data: json.data || null,
+                message: json.message || (res.ok ? 'Thành công' : `HTTP ${res.status}`)
+            };
+        } catch (err) {
+            return {
+                ok: false,
+                data: null,
+                message: 'Không thể kết nối tới máy chủ Backend.'
+            };
+        }
+    },
+
+    async getMe(token) {
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/me`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const json = await res.json().catch(() => ({}));
+            return {
+                ok: res.ok && json.success !== false,
+                status: res.status,
+                data: json.data || null,
+                message: json.message || ''
+            };
+        } catch (err) {
+            return { ok: false, status: 0, data: null, message: err.message };
+        }
+    },
+
+    async updateProfile(token, payload) {
+        try {
+            const authHeader = token
+                ? { Authorization: `Bearer ${token}` }
+                : getAuthHeaders();
+            const res = await fetch(`${API_BASE_URL}/auth/profile`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...authHeader
+                },
+                body: JSON.stringify(payload)
+            });
+            const json = await res.json().catch(() => ({}));
+            return {
+                ok: res.ok && json.success !== false,
+                data: json.data || null,
+                message: json.message || (res.ok ? 'Thành công' : `HTTP ${res.status}`)
+            };
+        } catch (err) {
+            return {
+                ok: false,
+                data: null,
+                message: 'Không thể kết nối tới máy chủ Backend.'
+            };
+        }
+    },
+
     async getRooms() {
         try {
-            const res = await fetch(`${API_BASE_URL}/public/rooms`);
+            const res = await fetch(`${API_BASE_URL}/public/rooms`, {
+                headers: getAuthHeaders()
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data || [];
         } catch (err) {
-            console.warn('[ApiService] Không thể lấy rooms từ BE, dùng cache:', err);
+            console.warn('[ApiService] Không thể lấy rooms từ BE:', err);
             return null;
         }
     },
@@ -31,25 +134,28 @@ export const ApiService = {
         try {
             const res = await fetch(`${API_BASE_URL}/public/rooms`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(room)
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data;
         } catch (err) {
             console.warn('[ApiService] Lỗi lưu room lên BE:', err);
-            return room;
+            return null;
         }
     },
 
     async getBookings() {
         try {
-            const res = await fetch(`${API_BASE_URL}/public/bookings`);
+            const res = await fetch(`${API_BASE_URL}/public/bookings`, {
+                headers: getAuthHeaders()
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data || [];
         } catch (err) {
-            console.warn('[ApiService] Không thể lấy bookings từ BE, dùng cache:', err);
+            console.warn('[ApiService] Không thể lấy bookings từ BE:', err);
             return null;
         }
     },
@@ -58,22 +164,32 @@ export const ApiService = {
         try {
             const res = await fetch(`${API_BASE_URL}/public/bookings`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(booking)
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data;
         } catch (err) {
             console.warn('[ApiService] Lỗi tạo booking lên BE:', err);
-            return booking;
+            return null;
         }
     },
 
-    async updateBookingStatus(bookingId, status) {
+    async updateBookingStatus(bookingId, status, paidAmount, remainingAmount) {
         try {
-            const res = await fetch(`${API_BASE_URL}/public/bookings/${bookingId}/status?status=${encodeURIComponent(status)}`, {
-                method: 'PUT'
+            const params = new URLSearchParams({ status });
+            if (paidAmount !== undefined && paidAmount !== null) {
+                params.append('paidAmount', String(paidAmount));
+            }
+            if (remainingAmount !== undefined && remainingAmount !== null) {
+                params.append('remainingAmount', String(remainingAmount));
+            }
+            const res = await fetch(`${API_BASE_URL}/public/bookings/${encodeURIComponent(bookingId)}/status?${params.toString()}`, {
+                method: 'PUT',
+                headers: getAuthHeaders()
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data;
         } catch (err) {
@@ -84,12 +200,14 @@ export const ApiService = {
 
     async getTransactions() {
         try {
-            const res = await fetch(`${API_BASE_URL}/public/transactions`);
+            const res = await fetch(`${API_BASE_URL}/public/transactions`, {
+                headers: getAuthHeaders()
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data || [];
         } catch (err) {
-            console.warn('[ApiService] Không thể lấy transactions từ BE, dùng cache:', err);
+            console.warn('[ApiService] Không thể lấy transactions từ BE:', err);
             return null;
         }
     },
@@ -98,21 +216,23 @@ export const ApiService = {
         try {
             const res = await fetch(`${API_BASE_URL}/public/transactions`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(tx)
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data;
         } catch (err) {
             console.warn('[ApiService] Lỗi ghi transaction lên BE:', err);
-            return tx;
+            return null;
         }
     },
 
     async deleteRoom(roomId) {
         try {
             const res = await fetch(`${API_BASE_URL}/public/rooms/${encodeURIComponent(roomId)}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getAuthHeaders()
             });
             return res.ok;
         } catch (err) {
@@ -124,7 +244,8 @@ export const ApiService = {
     async deleteBooking(bookingId) {
         try {
             const res = await fetch(`${API_BASE_URL}/public/bookings/${encodeURIComponent(bookingId)}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getAuthHeaders()
             });
             return res.ok;
         } catch (err) {
@@ -135,7 +256,9 @@ export const ApiService = {
 
     async getRoles() {
         try {
-            const res = await fetch(`${API_BASE_URL}/public/roles`);
+            const res = await fetch(`${API_BASE_URL}/public/roles`, {
+                headers: getAuthHeaders()
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data || [];
@@ -149,20 +272,23 @@ export const ApiService = {
         try {
             const res = await fetch(`${API_BASE_URL}/public/roles/${encodeURIComponent(roleId)}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(role)
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data;
         } catch (err) {
             console.warn('[ApiService] Lỗi cập nhật role lên BE:', err);
-            return role;
+            return null;
         }
     },
 
     async getStaff() {
         try {
-            const res = await fetch(`${API_BASE_URL}/public/staff`);
+            const res = await fetch(`${API_BASE_URL}/public/staff`, {
+                headers: getAuthHeaders()
+            });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data || [];
@@ -176,22 +302,25 @@ export const ApiService = {
         try {
             const res = await fetch(`${API_BASE_URL}/public/staff`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
                 body: JSON.stringify(staff)
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data;
         } catch (err) {
             console.warn('[ApiService] Lỗi lưu nhân sự lên BE:', err);
-            return staff;
+            return null;
         }
     },
 
     async toggleStaffStatus(staffId) {
         try {
             const res = await fetch(`${API_BASE_URL}/public/staff/${encodeURIComponent(staffId)}/toggle-status`, {
-                method: 'PATCH'
+                method: 'PATCH',
+                headers: getAuthHeaders()
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const json = await res.json();
             return json.data;
         } catch (err) {
@@ -203,7 +332,8 @@ export const ApiService = {
     async deleteStaff(staffId) {
         try {
             const res = await fetch(`${API_BASE_URL}/public/staff/${encodeURIComponent(staffId)}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: getAuthHeaders()
             });
             return res.ok;
         } catch (err) {

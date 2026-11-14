@@ -23,9 +23,10 @@ export default function LedgerView({
                                         .reduce((sum, b) => sum + (b.depositAmount || 0), 0);
 
     const filtered = transactions.filter(t => {
-        const matchSearch = t.id.toLowerCase().includes(searchVal.toLowerCase()) ||
-                            t.bookingId.toLowerCase().includes(searchVal.toLowerCase()) ||
-                            t.customerName.toLowerCase().includes(searchVal.toLowerCase());
+        const q = searchVal.toLowerCase();
+        const matchSearch = (t.id || '').toLowerCase().includes(q) ||
+                            (t.bookingId || '').toLowerCase().includes(q) ||
+                            (t.customerName || '').toLowerCase().includes(q);
         const matchMethod = methodFilter === 'ALL' || t.method === methodFilter;
         return matchSearch && matchMethod;
     });

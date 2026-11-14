@@ -81,6 +81,7 @@ export default function App() {
                             onViewCustomerLanding={() => ctrl.setViewMode('landing')}
                             onResetDemoData={ctrl.handleResetDemoData}
                             checkPermission={ctrl.checkPermission}
+                            onLogout={ctrl.handleLogout}
                         />
 
                         <main className="admin-content">
@@ -90,8 +91,10 @@ export default function App() {
                                 rolesConfig={ctrl.rolesConfig}
                                 activeStaffId={ctrl.activeStaffId}
                                 currentUser={ctrl.currentUser}
-                                onNavigateTab={tab => ctrl.setAdminTab(tab)}
+                                isSysAdminUser={ctrl.isSysAdminUser}
+                                onNavigateTab={ctrl.handleTabChange}
                                 onSwitchActiveStaff={id => {
+                                    if (!ctrl.isSysAdminUser) return;
                                     ctrl.setActiveStaffId(id);
                                     ctrl.addToast(
                                         'Chuyển vai trò thành công',
@@ -99,7 +102,6 @@ export default function App() {
                                         'info'
                                     );
                                 }}
-                                onLogout={ctrl.handleLogout}
                                 onToggleSidebar={() => setIsSidebarOpen(prev => !prev)}
                             />
 
@@ -132,7 +134,7 @@ export default function App() {
                                     <BookingsView
                                         bookings={ctrl.bookings}
                                         checkPermission={ctrl.checkPermission}
-                                        onQuickWalkInBooking={() => ctrl.handleQuickCheckIn('101')}
+                                        onQuickWalkInBooking={() => ctrl.handleQuickCheckIn()}
                                         onOpenCccdView={b => ctrl.openModal('adminCccdView', b)}
                                         onConfirmCheckIn={ctrl.handleConfirmCheckIn}
                                         onOpenCheckoutModal={ctrl.handleOpenCheckoutModal}

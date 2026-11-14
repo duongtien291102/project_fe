@@ -23,10 +23,14 @@ export default function StaffView({
     const canManageStaff = checkPermission('manage_staff');
 
     const filteredStaff = staffUsers.filter(s => {
-        const matchSearch = s.name.toLowerCase().includes(searchVal.toLowerCase()) ||
-                            s.email.toLowerCase().includes(searchVal.toLowerCase()) ||
-                            s.id.toLowerCase().includes(searchVal.toLowerCase());
-        const matchRole = filterRoleId === 'ALL' || s.roleId === filterRoleId;
+        const sName = (s.name || s.fullName || s.username || '').toLowerCase();
+        const sEmail = (s.email || '').toLowerCase();
+        const sId = (s.id || '').toLowerCase();
+        const sRoleId = s.roleId || (Array.isArray(s.roles) && s.roles[0]) || '';
+        const matchSearch = sName.includes(searchVal.toLowerCase()) ||
+                            sEmail.includes(searchVal.toLowerCase()) ||
+                            sId.includes(searchVal.toLowerCase());
+        const matchRole = filterRoleId === 'ALL' || sRoleId === filterRoleId;
         return matchSearch && matchRole;
     });
 
@@ -81,7 +85,9 @@ export default function StaffView({
                         </thead>
                         <tbody>
                             {filteredStaff.map(s => {
-                                const role = rolesConfig.find(r => r.id === s.roleId) || { name: s.roleId, badgeColor: '#64748b' };
+                                const sName = s.name || s.fullName || s.username || s.id || 'Nhân sự';
+                                const sRoleId = s.roleId || (Array.isArray(s.roles) && s.roles[0]) || '';
+                                const role = rolesConfig.find(r => r.id === sRoleId || (Array.isArray(s.roles) && s.roles.includes(r.id))) || { name: sRoleId || 'Nhân sự', badgeColor: '#64748b' };
                                 const isLocked = s.status === 'locked';
 
                                 return (
@@ -92,10 +98,10 @@ export default function StaffView({
                                                     className="user-avatar"
                                                     style={{ background: role.badgeColor, color: '#fff', width: '34px', height: '34px' }}
                                                 >
-                                                    {s.name.charAt(0)}
+                                                    {sName.charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <strong style={{ color: 'var(--navy-dark)' }}>{s.name}</strong>
+                                                    <strong style={{ color: 'var(--navy-dark)' }}>{sName}</strong>
                                                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>
                                                         {s.id}
                                                     </div>
@@ -105,11 +111,11 @@ export default function StaffView({
                                         <td>
                                             <div>
                                                 <i className="fa-regular fa-envelope" style={{ color: 'var(--text-muted)', marginRight: '5px' }}></i>
-                                                {s.email}
+                                                {s.email || '---'}
                                             </div>
                                             <small style={{ color: 'var(--text-muted)' }}>
                                                 <i className="fa-solid fa-phone" style={{ marginRight: '5px' }}></i>
-                                                {s.phone}
+                                                {s.phone || '---'}
                                             </small>
                                         </td>
                                         <td>

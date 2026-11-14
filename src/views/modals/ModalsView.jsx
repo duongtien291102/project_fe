@@ -6,8 +6,29 @@
  */
 
 import React, { useState } from 'react';
-import { DEFAULT_CCCD_FRONT, DEFAULT_CCCD_BACK } from '../../models/BookingModel.js';
+import { ADDON_PRICES } from '../../models/BookingModel.js';
 import { HOTEL_BANK_CONFIG, formatVND, generateVietQRUrl } from '../../models/TransactionModel.js';
+
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const MAX_CCCD_FILE_BYTES = 2 * 1024 * 1024; // 2MB
+
+function handleValidatedImageUpload(e, setter) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+        alert('Định dạng ảnh không hợp lệ. Vui lòng chọn file ảnh JPG, PNG hoặc WEBP.');
+        e.target.value = '';
+        return;
+    }
+    if (file.size > MAX_CCCD_FILE_BYTES) {
+        alert('Dung lượng ảnh vượt quá 2MB. Vui lòng chọn ảnh nhẹ hơn.');
+        e.target.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => setter(ev.target.result);
+    reader.readAsDataURL(file);
+}
 
 export default function ModalsView({
     activeModal,
@@ -58,6 +79,8 @@ export default function ModalsView({
             {activeModal === 'booking' && (
                 <BookingModal
                     room={modalData?.room}
+                    rooms={rooms}
+                    isWalkIn={modalData?.isWalkIn}
                     currentUser={currentUser}
                     onClose={onCloseModal}
                     onSubmitBooking={onSubmitBooking}
@@ -132,24 +155,19 @@ function AuthModal({ onClose, onLoginSuccess, onRegisterSuccess }) {
     const [regFullName, setRegFullName] = useState('');
     const [regPhone, setRegPhone] = useState('');
     const [regEmail, setRegEmail] = useState('');
-    const [regDob, setRegDob] = useState('1995-05-15');
+    const [regDob, setRegDob] = useState('');
     const [regGender, setRegGender] = useState('Nam');
     const [regNationality, setRegNationality] = useState('Việt Nam');
     const [regAddress, setRegAddress] = useState('');
     const [regCccdNumber, setRegCccdNumber] = useState('');
-    const [regCccdDate, setRegCccdDate] = useState('2021-08-20');
-    const [regCccdPlace, setRegCccdPlace] = useState('Cục CSQLHC về TTXH');
-    const [regFrontImg, setRegFrontImg] = useState(DEFAULT_CCCD_FRONT);
-    const [regBackImg, setRegBackImg] = useState(DEFAULT_CCCD_BACK);
+    const [regCccdDate, setRegCccdDate] = useState('');
+    const [regCccdPlace, setRegCccdPlace] = useState('');
+    const [regFrontImg, setRegFrontImg] = useState('');
+    const [regBackImg, setRegBackImg] = useState('');
     const [regPassword, setRegPassword] = useState('');
 
     const handleFileUpload = (e, setter) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = ev => setter(ev.target.result);
-            reader.readAsDataURL(file);
-        }
+        handleValidatedImageUpload(e, setter);
     };
 
     const handleLoginSubmit = e => {
@@ -165,8 +183,10 @@ function AuthModal({ onClose, onLoginSuccess, onRegisterSuccess }) {
         onRegisterSuccess({
             username: regEmail,
             name: regFullName.toUpperCase(),
+            fullName: regFullName.toUpperCase(),
             phone: regPhone,
             email: regEmail,
+            password: regPassword,
             dob: regDob,
             gender: regGender,
             nationality: regNationality,
@@ -317,7 +337,7 @@ function AuthModal({ onClose, onLoginSuccess, onRegisterSuccess }) {
                                     <label>Số CCCD / CMND (12 số) *</label>
                                     <input
                                         type="text"
-                                        placeholder="079095001234"
+                                        placeholder="Nhập số CCCD / Hộ chiếu"
                                         maxLength="15"
                                         required
                                         style={{ fontWeight: 700, letterSpacing: '1px' }}
@@ -356,7 +376,7 @@ function AuthModal({ onClose, onLoginSuccess, onRegisterSuccess }) {
                                     <input
                                         type="file"
                                         id="regFrontFileInput"
-                                        accept="image/*"
+                                        accept="image/jpeg,image/png,image/webp"
                                         style={{ display: 'none' }}
                                         onChange={e => handleFileUpload(e, setRegFrontImg)}
                                     />
@@ -372,7 +392,7 @@ function AuthModal({ onClose, onLoginSuccess, onRegisterSuccess }) {
                                     <input
                                         type="file"
                                         id="regBackFileInput"
-                                        accept="image/*"
+                                        accept="image/jpeg,image/png,image/webp"
                                         style={{ display: 'none' }}
                                         onChange={e => handleFileUpload(e, setRegBackImg)}
                                     />
@@ -413,22 +433,17 @@ function CustomerProfileModal({ currentUser, onClose, onUpdateProfileSuccess }) 
     const [name, setName] = useState(currentUser?.name || '');
     const [phone, setPhone] = useState(currentUser?.phone || '');
     const [email] = useState(currentUser?.email || currentUser?.username || '');
-    const [dob, setDob] = useState(currentUser?.dob || '1995-05-15');
+    const [dob, setDob] = useState(currentUser?.dob || '');
     const [gender, setGender] = useState(currentUser?.gender || 'Nam');
-    const [address, setAddress] = useState(currentUser?.address || 'TP. Hồ Chí Minh');
-    const [cccd, setCccd] = useState(currentUser?.cccd || '079095001234');
-    const [cccdDate, setCccdDate] = useState(currentUser?.cccdDate || '2021-08-20');
-    const [cccdPlace, setCccdPlace] = useState(currentUser?.cccdPlace || 'Cục CSQLHC về TTXH');
-    const [frontImg, setFrontImg] = useState(currentUser?.cccdFront || DEFAULT_CCCD_FRONT);
-    const [backImg, setBackImg] = useState(currentUser?.cccdBack || DEFAULT_CCCD_BACK);
+    const [address, setAddress] = useState(currentUser?.address || '');
+    const [cccd, setCccd] = useState(currentUser?.cccd || '');
+    const [cccdDate, setCccdDate] = useState(currentUser?.cccdDate || '');
+    const [cccdPlace, setCccdPlace] = useState(currentUser?.cccdPlace || '');
+    const [frontImg, setFrontImg] = useState(currentUser?.cccdFront || '');
+    const [backImg, setBackImg] = useState(currentUser?.cccdBack || '');
 
     const handleFileUpload = (e, setter) => {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = ev => setter(ev.target.result);
-            reader.readAsDataURL(file);
-        }
+        handleValidatedImageUpload(e, setter);
     };
 
     const handleSubmit = e => {
@@ -465,9 +480,15 @@ function CustomerProfileModal({ currentUser, onClose, onUpdateProfileSuccess }) 
                                 </div>
                                 <div>
                                     <h4 style={{ fontSize: '1.15rem', color: 'var(--navy-dark)' }}>{name}</h4>
-                                    <span className="status-badge badge-verified">
-                                        <i className="fa-solid fa-circle-check"></i> Đã Xác Minh CCCD
-                                    </span>
+                                    {cccd ? (
+                                        <span className="status-badge badge-verified">
+                                            <i className="fa-solid fa-circle-check"></i> Đã Xác Minh CCCD
+                                        </span>
+                                    ) : (
+                                        <span className="status-badge" style={{ background: '#fef3c7', color: '#92400e' }}>
+                                            <i className="fa-solid fa-circle-exclamation"></i> Chưa cập nhật CCCD
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -526,14 +547,14 @@ function CustomerProfileModal({ currentUser, onClose, onUpdateProfileSuccess }) 
                             <div className="cccd-upload-box" onClick={() => document.getElementById('profFrontInput').click()}>
                                 <i className="fa-solid fa-camera-rotate"></i>
                                 <span>Đổi Ảnh CCCD Mặt Trước</span>
-                                <input type="file" id="profFrontInput" accept="image/*" style={{ display: 'none' }} onChange={e => handleFileUpload(e, setFrontImg)} />
-                                <img src={frontImg} className="cccd-preview-img" style={{ display: 'block' }} alt="CCCD Mặt Trước" />
+                                <input type="file" id="profFrontInput" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={e => handleFileUpload(e, setFrontImg)} />
+                                {frontImg && <img src={frontImg} className="cccd-preview-img" style={{ display: 'block' }} alt="CCCD Mặt Trước" />}
                             </div>
                             <div className="cccd-upload-box" onClick={() => document.getElementById('profBackInput').click()}>
                                 <i className="fa-solid fa-camera-rotate"></i>
                                 <span>Đổi Ảnh CCCD Mặt Sau</span>
-                                <input type="file" id="profBackInput" accept="image/*" style={{ display: 'none' }} onChange={e => handleFileUpload(e, setBackImg)} />
-                                <img src={backImg} className="cccd-preview-img" style={{ display: 'block' }} alt="CCCD Mặt Sau" />
+                                <input type="file" id="profBackInput" accept="image/jpeg,image/png,image/webp" style={{ display: 'none' }} onChange={e => handleFileUpload(e, setBackImg)} />
+                                {backImg && <img src={backImg} className="cccd-preview-img" style={{ display: 'block' }} alt="CCCD Mặt Sau" />}
                             </div>
                         </div>
 
@@ -595,11 +616,23 @@ function AdminCccdViewModal({ booking, onClose }) {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                         <div>
                             <strong style={{ fontSize: '0.85rem', display: 'block', marginBottom: '6px' }}>Mặt trước:</strong>
-                            <img src={booking.cccdFront || DEFAULT_CCCD_FRONT} alt="CCCD Mặt Trước" style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            {booking.cccdFront ? (
+                                <img src={booking.cccdFront} alt="CCCD Mặt Trước" style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            ) : (
+                                <div style={{ width: '100%', height: '200px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '0.88rem' }}>
+                                    Chưa cập nhật ảnh CCCD
+                                </div>
+                            )}
                         </div>
                         <div>
                             <strong style={{ fontSize: '0.85rem', display: 'block', marginBottom: '6px' }}>Mặt sau:</strong>
-                            <img src={booking.cccdBack || DEFAULT_CCCD_BACK} alt="CCCD Mặt Sau" style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            {booking.cccdBack ? (
+                                <img src={booking.cccdBack} alt="CCCD Mặt Sau" style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', border: '1px solid #cbd5e1' }} />
+                            ) : (
+                                <div style={{ width: '100%', height: '200px', borderRadius: '8px', border: '1px dashed #cbd5e1', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '0.88rem' }}>
+                                    Chưa cập nhật ảnh CCCD
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -615,16 +648,21 @@ function AdminCccdViewModal({ booking, onClose }) {
 }
 
 // 4. CLIENT BOOKING MODAL
-function BookingModal({ room, currentUser, onClose, onSubmitBooking }) {
-    if (!room) return null;
+function BookingModal({ room, rooms = [], isWalkIn = false, currentUser, onClose, onSubmitBooking }) {
+    const availableRooms = rooms.filter(r => r.status === 'Trống');
+    const initialRoom = room || availableRooms[0] || rooms[0] || null;
+    const [selectedRoomId, setSelectedRoomId] = useState(initialRoom?.id || '');
+    const activeRoom = isWalkIn
+        ? (rooms.find(r => r.id === selectedRoomId) || initialRoom)
+        : initialRoom;
 
     const todayStr = new Date().toISOString().split('T')[0];
     const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
-    const [customerName, setCustomerName] = useState(currentUser?.name || '');
-    const [phone, setPhone] = useState(currentUser?.phone || '');
-    const [cccd, setCccd] = useState(currentUser?.cccd || '079095001234');
-    const [dob, setDob] = useState(currentUser?.dob || '1995-05-15');
+    const [customerName, setCustomerName] = useState(isWalkIn ? '' : (currentUser?.name || ''));
+    const [phone, setPhone] = useState(isWalkIn ? '' : (currentUser?.phone || ''));
+    const [cccd, setCccd] = useState(isWalkIn ? '' : (currentUser?.cccd || ''));
+    const [dob, setDob] = useState(isWalkIn ? '' : (currentUser?.dob || ''));
     const [checkIn, setCheckIn] = useState(todayStr);
     const [checkOut, setCheckOut] = useState(tomorrowStr);
     const [breakfast, setBreakfast] = useState(true);
@@ -633,6 +671,8 @@ function BookingModal({ room, currentUser, onClose, onSubmitBooking }) {
     const [depositPercent, setDepositPercent] = useState('50');
     const [paymentMethod, setPaymentMethod] = useState('VietQR');
 
+    if (!activeRoom) return null;
+
     let nights = 1;
     if (checkIn && checkOut) {
         const diff = new Date(checkOut) - new Date(checkIn);
@@ -640,11 +680,11 @@ function BookingModal({ room, currentUser, onClose, onSubmitBooking }) {
         if (nights <= 0) nights = 1;
     }
 
-    const roomPriceTotal = room.price * nights;
+    const roomPriceTotal = activeRoom.price * nights;
     let addonTotal = 0;
-    if (breakfast) addonTotal += 200000 * nights;
-    if (pickup) addonTotal += 450000;
-    if (spa) addonTotal += 600000;
+    if (breakfast) addonTotal += ADDON_PRICES['Buffet Sáng Michelin'] * nights;
+    if (pickup) addonTotal += ADDON_PRICES['Đưa Đón Sân Bay'];
+    if (spa) addonTotal += ADDON_PRICES['Lotus Spa'];
     const grandTotal = roomPriceTotal + addonTotal;
 
     const depPct = parseInt(depositPercent, 10);
@@ -658,7 +698,8 @@ function BookingModal({ room, currentUser, onClose, onSubmitBooking }) {
         if (spa) selectedAddons.push('Lotus Spa');
 
         onSubmitBooking({
-            room,
+            room: activeRoom,
+            isWalkIn: !!isWalkIn,
             customerName: customerName.toUpperCase(),
             phone,
             cccd,
@@ -677,18 +718,36 @@ function BookingModal({ room, currentUser, onClose, onSubmitBooking }) {
         <div className="modal-overlay" style={{ display: 'flex' }}>
             <div className="modal-card modal-lg">
                 <div className="modal-header">
-                    <h3>Xác Nhận Đặt Phòng & Đặt Cọc</h3>
+                    <h3>{isWalkIn ? 'Đặt Phòng Nhanh Cho Khách Vãng Lai (Walk-in)' : 'Xác Nhận Đặt Phòng & Đặt Cọc'}</h3>
                     <button className="modal-close-btn" onClick={onClose}>&times;</button>
                 </div>
                 <div className="modal-body">
                     <form onSubmit={handleSubmit}>
+                        {isWalkIn && (
+                            <div className="form-group">
+                                <label><i className="fa-solid fa-door-open"></i> Chọn Phòng Trống Cho Khách</label>
+                                <select value={activeRoom.id} onChange={e => setSelectedRoomId(e.target.value)}>
+                                    {(availableRooms.length > 0 ? availableRooms : rooms).map(r => (
+                                        <option key={r.id} value={r.id}>
+                                            Phòng {r.id} - {r.name} ({formatVND(r.price)}/đêm){r.status !== 'Trống' ? ` [${r.status}]` : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                         <div style={{ display: 'flex', gap: '20px', alignItems: 'center', marginBottom: '24px', paddingBottom: '18px', borderBottom: '1px solid var(--border-color)' }}>
-                            <img src={room.image} alt={room.name} style={{ width: '120px', height: '85px', borderRadius: '10px', objectFit: 'cover' }} />
+                            {activeRoom.image ? (
+                                <img src={activeRoom.image} alt={activeRoom.name} style={{ width: '120px', height: '85px', borderRadius: '10px', objectFit: 'cover' }} />
+                            ) : (
+                                <div style={{ width: '120px', height: '85px', borderRadius: '10px', background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontSize: '0.78rem', flexShrink: 0 }}>
+                                    Chưa có ảnh
+                                </div>
+                            )}
                             <div>
-                                <span className="room-type">{room.type.toUpperCase()}</span>
-                                <h4 style={{ fontSize: '1.3rem', color: 'var(--navy-dark)' }}>{room.name} (Phòng {room.id})</h4>
+                                <span className="room-type">{(activeRoom.type || '').toUpperCase()}</span>
+                                <h4 style={{ fontSize: '1.3rem', color: 'var(--navy-dark)' }}>{activeRoom.name} (Phòng {activeRoom.id})</h4>
                                 <div style={{ fontSize: '0.9rem', color: 'var(--gold-dark)', fontWeight: 700 }}>
-                                    {formatVND(room.price)} / đêm
+                                    {formatVND(activeRoom.price)} / đêm
                                 </div>
                             </div>
                         </div>
@@ -882,7 +941,7 @@ function CheckoutModal({ room, booking, onClose, onFinalizeCheckout }) {
 
     const nights = booking?.nights || 1;
     const roomTotal = room.price * nights;
-    const minibar = 150000;
+    const minibar = Number(booking?.minibar) || 0;
     const grandTotal = (booking?.totalAmount ? booking.totalAmount : roomTotal) + minibar;
     const depositPaid = booking?.depositAmount || 0;
     const remaining = Math.max(0, grandTotal - depositPaid);
@@ -923,7 +982,7 @@ function CheckoutModal({ room, booking, onClose, onFinalizeCheckout }) {
                                 <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Khách Hàng (CCCD):</div>
                                 <strong style={{ fontSize: '1.1rem', color: 'var(--navy-dark)' }}>{booking?.customerName || room.currentGuest || 'Khách Lưu Trú'}</strong>
                                 <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                    {booking?.phone || '09xxxxxxxx'} | CCCD: {booking?.cccd || '---'}
+                                    {booking?.phone || '---'} | CCCD: {booking?.cccd || '---'}
                                 </div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
@@ -947,18 +1006,25 @@ function CheckoutModal({ room, booking, onClose, onFinalizeCheckout }) {
                                     <td>{nights} đêm x {formatVND(room.price)}</td>
                                     <td style={{ textAlign: 'right' }}><strong>{formatVND(roomTotal)}</strong></td>
                                 </tr>
-                                {booking?.addons?.map((addon, i) => (
-                                    <tr key={i}>
-                                        <td>Dịch vụ: {addon}</td>
-                                        <td>Gói gia tăng 5 sao</td>
-                                        <td style={{ textAlign: 'right' }}>300.000 ₫</td>
+                                {booking?.addons?.map((addon, i) => {
+                                    const unitPrice = ADDON_PRICES[addon] || 0;
+                                    const isPerNight = addon === 'Buffet Sáng Michelin';
+                                    const lineTotal = isPerNight ? unitPrice * nights : unitPrice;
+                                    return (
+                                        <tr key={i}>
+                                            <td>Dịch vụ: {addon}</td>
+                                            <td>{isPerNight ? `${nights} ngày x ${formatVND(unitPrice)}` : 'Gói dịch vụ theo đơn'}</td>
+                                            <td style={{ textAlign: 'right' }}>{lineTotal > 0 ? formatVND(lineTotal) : 'Đã bao gồm'}</td>
+                                        </tr>
+                                    );
+                                })}
+                                {minibar > 0 && (
+                                    <tr>
+                                        <td>Sử dụng Mini-bar & Dịch vụ phát sinh</td>
+                                        <td>Phụ thu dịch vụ phòng</td>
+                                        <td style={{ textAlign: 'right' }}>{formatVND(minibar)}</td>
                                     </tr>
-                                ))}
-                                <tr>
-                                    <td>Sử dụng Mini-bar & Nước suối</td>
-                                    <td>2 Nước khoáng Perrier + Rượu nhỏ</td>
-                                    <td style={{ textAlign: 'right' }}>150.000 ₫</td>
-                                </tr>
+                                )}
                             </tbody>
                         </table>
 
@@ -1144,11 +1210,13 @@ function ManualTxModal({ onClose, onCreateManualTx }) {
 
 // 8. MY BOOKINGS MODAL
 function MyBookingsModal({ currentUser, bookings, onClose }) {
-    const myBookings = bookings.filter(b =>
-        (currentUser?.name && b.customerName?.toLowerCase().includes(currentUser.name.toLowerCase())) ||
-        (currentUser?.phone && b.phone === currentUser.phone) ||
-        (currentUser?.cccd && b.cccd === currentUser.cccd)
-    );
+    const myBookings = bookings.filter(b => {
+        if (!currentUser) return false;
+        if (b.userId && currentUser.id && b.userId === currentUser.id) return true;
+        if (b.username && currentUser.username && b.username.toLowerCase() === currentUser.username.toLowerCase()) return true;
+        if (currentUser.cccd && b.cccd && b.cccd === currentUser.cccd) return true;
+        return false;
+    });
 
     return (
         <div className="modal-overlay" style={{ display: 'flex' }}>
@@ -1207,7 +1275,7 @@ function NewRoomModal({ onClose, onCreateRoom }) {
     const [type, setType] = useState('Standard');
     const [name, setName] = useState('');
     const [price, setPrice] = useState('');
-    const [img, setImg] = useState('https://images.unsplash.com/photo-1591088398332-8a7791972843?auto=format&fit=crop&w=600&q=80');
+    const [img, setImg] = useState('');
 
     const handleSubmit = e => {
         e.preventDefault();
@@ -1256,7 +1324,7 @@ function NewRoomModal({ onClose, onCreateRoom }) {
                         </div>
                         <div className="form-group">
                             <label>Đường Dẫn Ảnh (URL)</label>
-                            <input type="url" required value={img} onChange={e => setImg(e.target.value)} />
+                            <input type="url" placeholder="https://... (không bắt buộc)" value={img} onChange={e => setImg(e.target.value)} />
                         </div>
                         <button type="submit" className="btn btn-gold" style={{ width: '100%', marginTop: '10px' }}>
                             <i className="fa-solid fa-plus"></i> Thêm Phòng Vào Hệ Thống
@@ -1270,16 +1338,21 @@ function NewRoomModal({ onClose, onCreateRoom }) {
 
 // 10. STAFF MODAL
 function StaffModal({ staffToEdit, rolesConfig, onClose, onSaveStaff }) {
-    const [name, setName] = useState(staffToEdit?.name || '');
+    const initialRoleId = staffToEdit?.roleId || (Array.isArray(staffToEdit?.roles) && staffToEdit.roles[0]) || rolesConfig[0]?.id || 'receptionist';
+    const [name, setName] = useState(staffToEdit?.name || staffToEdit?.fullName || '');
+    const [username, setUsername] = useState(staffToEdit?.username || '');
+    const [password, setPassword] = useState('');
     const [email, setEmail] = useState(staffToEdit?.email || '');
     const [phone, setPhone] = useState(staffToEdit?.phone || '');
-    const [roleId, setRoleId] = useState(staffToEdit?.roleId || rolesConfig[0]?.id || 'receptionist');
+    const [roleId, setRoleId] = useState(initialRoleId);
     const [status, setStatus] = useState(staffToEdit?.status || 'active');
 
     const handleSubmit = e => {
         e.preventDefault();
         onSaveStaff({
             editId: staffToEdit?.id,
+            username: username || email,
+            password,
             name,
             email,
             phone,
@@ -1300,6 +1373,23 @@ function StaffModal({ staffToEdit, rolesConfig, onClose, onSaveStaff }) {
                         <div className="form-group">
                             <label>Họ và Tên Nhân Viên</label>
                             <input type="text" placeholder="VD: Vũ Hoàng Long" required value={name} onChange={e => setName(e.target.value)} />
+                        </div>
+                        <div className="form-row">
+                            <div className="form-group">
+                                <label>Tên Đăng Nhập</label>
+                                <input type="text" placeholder="VD: long.vu" required value={username} onChange={e => setUsername(e.target.value)} />
+                            </div>
+                            <div className="form-group">
+                                <label>Mật Khẩu {staffToEdit ? '(Để trống nếu không đổi)' : '*'}</label>
+                                <input
+                                    type="password"
+                                    placeholder={staffToEdit ? 'Nhập mật khẩu mới nếu muốn đổi' : 'Tối thiểu 6 ký tự'}
+                                    required={!staffToEdit}
+                                    minLength={password ? 6 : undefined}
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                />
+                            </div>
                         </div>
                         <div className="form-row">
                             <div className="form-group">

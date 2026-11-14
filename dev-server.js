@@ -4,7 +4,7 @@
  * ============================================================================
  * Chạy trực tiếp bằng lệnh `npm run dev` mà KHÔNG cần cài thêm thư viện ngoài (vite/webpack).
  * Tự động đóng gói kiến trúc MVC từ `src/` sang `index.html` & `react.html`,
- * theo dõi thay đổi file (File Watcher) và khởi chạy máy chủ tại http://localhost:5555
+ * theo dõi thay đổi file (File Watcher) và khởi chạy máy chủ tại http://127.0.0.1:5555
  */
 
 import http from 'node:http';
@@ -50,8 +50,8 @@ export function buildStandalone() {
         .replace(/<\/?style>/gi, '');
 
     const modelsCode = [
-        cleanSource('src/models/ApiService.js'),
         cleanSource('src/models/StorageService.js'),
+        cleanSource('src/models/ApiService.js'),
         cleanSource('src/models/RoomModel.js'),
         cleanSource('src/models/BookingModel.js'),
         cleanSource('src/models/UserModel.js'),
@@ -91,16 +91,16 @@ export function buildStandalone() {
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha384-t1nt8BQoYMLFN5p42tRAtuAAFQaCQODekUVeKKZrEnEyp4H2R0RHFz0KWpmj7i8g" crossorigin="anonymous">
     
     <!-- Chart.js & SheetJS (Excel Export) Thư Viện Chuyên Dụng 5 Sao -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" integrity="sha384-9nhczxUqK87bcKHh20fSQcTGD4qq5GhayNYSYWqwBkINBhOfQLg/P5HG5lF1urn4" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw" crossorigin="anonymous"></script>
 
     <!-- React 18, ReactDOM & Babel Standalone (Zero-Install: Chạy trực tiếp React MVC không cần cài thư viện npm) -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+    <script src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js" integrity="sha384-AISI5AuDG6E8DeEiFMVB3rGQxhZt24OU0avMp+GMV64+tpnA3+Z6F5MT0f96iPva" crossorigin="anonymous"></script>
 
     <style>
 ${cssContent}
@@ -189,12 +189,51 @@ const MIME_TYPES = {
     '.ico': 'image/x-icon'
 };
 
-const server = http.createServer((req, res) => {
-    const cleanUrl = (req.url || '/').split('?')[0];
-    let filePath = path.join(__dirname, cleanUrl === '/' ? 'index.html' : cleanUrl);
+const SECURITY_HEADERS = {
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'strict-origin-when-cross-origin'
+};
 
-    if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-        filePath = path.join(__dirname, 'index.html');
+const ALLOWED_STATIC_ROUTES = new Map([
+    ['/', 'index.html'],
+    ['/index.html', 'index.html'],
+    ['/react.html', 'react.html'],
+    ['/de.html', 'de.html'],
+    ['/favicon.ico', 'favicon.ico']
+]);
+
+const rootResolved = path.resolve(__dirname);
+
+const server = http.createServer((req, res) => {
+    const rawPath = (req.url || '/').split('?')[0];
+    let decodedPath;
+    try {
+        decodedPath = decodeURIComponent(rawPath);
+    } catch {
+        res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+        res.end('400 Bad Request');
+        return;
+    }
+
+    if (decodedPath.includes('..') || decodedPath.includes('\0') || decodedPath.includes('/.')) {
+        res.writeHead(403, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+        res.end('403 Forbidden');
+        return;
+    }
+
+    const mappedFile = ALLOWED_STATIC_ROUTES.get(decodedPath);
+    if (!mappedFile) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+        res.end('404 Not Found');
+        return;
+    }
+
+    const filePath = path.resolve(__dirname, mappedFile);
+    if (!filePath.startsWith(rootResolved + path.sep) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
+        res.end('404 Not Found');
+        return;
     }
 
     const ext = path.extname(filePath).toLowerCase();
@@ -202,17 +241,20 @@ const server = http.createServer((req, res) => {
 
     fs.readFile(filePath, (err, content) => {
         if (err) {
-            res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
+            res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8', ...SECURITY_HEADERS });
             res.end('500 Internal Server Error');
             return;
         }
         res.writeHead(200, {
             'Content-Type': contentType,
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache',
+            ...SECURITY_HEADERS
         });
         res.end(content);
     });
 });
+
+const HOST = process.env.HOST || '127.0.0.1';
 
 function startServer(port) {
     server.once('error', err => {
@@ -223,14 +265,13 @@ function startServer(port) {
         }
     });
 
-    server.listen(port, '0.0.0.0', () => {
+    server.listen(port, HOST, () => {
         console.log('\n  \x1b[32m\x1b[1mGRAND HOTEL & RESORTS - REACT MVC DEV SERVER\x1b[0m');
         console.log('  \x1b[90mChế độ Zero-Dependency (Không cần tải thêm thư viện ngoài)\x1b[0m\n');
-        console.log(`  \x1b[32m➜\x1b[0m  \x1b[1mLocal:\x1b[0m   \x1b[36mhttp://localhost:${port}/\x1b[0m`);
-        console.log(`  \x1b[32m➜\x1b[0m  \x1b[1mNetwork:\x1b[0m \x1b[36mhttp://0.0.0.0:${port}/\x1b[0m`);
+        console.log(`  \x1b[32m➜\x1b[0m  \x1b[1mLocal:\x1b[0m   \x1b[36mhttp://${HOST}:${port}/\x1b[0m`);
         console.log(`  \x1b[32m➜\x1b[0m  \x1b[1mWatch:\x1b[0m   Đang tự động theo dõi thay đổi trong \x1b[33msrc/models\x1b[0m, \x1b[33msrc/views\x1b[0m, \x1b[33msrc/controllers\x1b[0m\n`);
     });
 }
 
-const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 2902;
+const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 5555;
 startServer(DEFAULT_PORT);

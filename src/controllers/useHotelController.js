@@ -8,15 +8,64 @@
 
 import { useState, useEffect } from 'react';
 import { StorageService, STORAGE_KEYS } from '../models/StorageService.js';
-import { INITIAL_ROOMS, createRoomInstance } from '../models/RoomModel.js';
-import { INITIAL_BOOKINGS, DEFAULT_CCCD_FRONT, DEFAULT_CCCD_BACK } from '../models/BookingModel.js';
-import { INITIAL_STAFF_USERS, INITIAL_ROLES, hasPermission } from '../models/UserModel.js';
-import { INITIAL_TRANSACTIONS, formatVND } from '../models/TransactionModel.js';
+import { createRoomInstance } from '../models/RoomModel.js';
+import { hasPermission } from '../models/UserModel.js';
+import { formatVND } from '../models/TransactionModel.js';
 import { generateDefaultHistoricalRevenue, buildDynamicHistoricalRevenue } from '../models/RevenueModel.js';
 import { ApiService } from '../models/ApiService.js';
 
+function checkIsSysAdmin(user) {
+    return Boolean(
+        user && (
+            user.roleId === 'ROLE_SYSADMIN' ||
+            (Array.isArray(user.roles) && user.roles.includes('ROLE_SYSADMIN'))
+        )
+    );
+}
+
+function generateUniqueId(prefix) {
+    if (typeof window !== 'undefined' && window.crypto && typeof window.crypto.randomUUID === 'function') {
+        return `${prefix}-${window.crypto.randomUUID().replace(/-/g, '').slice(0, 8).toUpperCase()}`;
+    }
+    const rand = Math.floor(Math.random() * 0xFFFFFFFF).toString(16).toUpperCase().padStart(8, '0');
+    return `${prefix}-${Date.now().toString(36).toUpperCase()}${rand.slice(0, 4)}`;
+}
+
+function normalizeAuthUser(authData) {
+    if (!authData) return null;
+    const roles = Array.isArray(authData.roles) ? authData.roles : [];
+    const isStaffOrAdmin = roles.some(r => r && r !== 'ROLE_USER');
+    const resolvedRoleId = authData.roleId || (roles.includes('ROLE_SYSADMIN') ? 'ROLE_SYSADMIN' : (roles[0] || 'ROLE_USER'));
+    const displayName = authData.name || authData.fullName || authData.username || '';
+    return {
+        id: authData.id,
+        staffId: isStaffOrAdmin ? authData.id : null,
+        username: authData.username,
+        name: displayName,
+        fullName: authData.fullName || displayName,
+        email: authData.email || '',
+        phone: authData.phone || '',
+        dob: authData.dob || '',
+        gender: authData.gender || 'Nam',
+        nationality: authData.nationality || 'Việt Nam',
+        address: authData.address || '',
+        cccd: authData.cccd || '',
+        cccdDate: authData.cccdDate || '',
+        cccdPlace: authData.cccdPlace || '',
+        cccdFront: authData.cccdFront || '',
+        cccdBack: authData.cccdBack || '',
+        avatar: authData.avatar || (displayName ? displayName.charAt(0).toUpperCase() : 'U'),
+        role: isStaffOrAdmin ? 'staff' : 'customer',
+        roleId: resolvedRoleId,
+        roleName: authData.roleName || (isStaffOrAdmin ? resolvedRoleId : 'Khách Hàng'),
+        roles,
+        effectivePermissions: authData.effectivePermissions || {},
+        hasAdminAccess: isStaffOrAdmin
+    };
+}
+
 export const ADMIN_TAB_TITLES = {
-    'dashboard': 'Bảng Điều Khiển Tổng Quan Doanh Thu (3 Năm)',
+    'dashboard': 'Dashboard',
     'rooms-management': 'Quản Lý Danh Sách & Trạng Thái Phòng',
     'bookings-management': 'Quản Lý Đơn Đặt Phòng & Định Danh CCCD Khách Lưu Trú',
     'financial-ledger': 'Sổ Quỹ Thu Chi & Giao Dịch Tiền Tệ (VietQR, Tiền Mặt, Thẻ)',
@@ -26,19 +75,21 @@ export const ADMIN_TAB_TITLES = {
 
 export function useHotelController() {
     // -------------------------------------------------------------
-    // Global Models State
+    // Global Models State (100% Real Data from Backend & MongoDB Atlas)
     // -------------------------------------------------------------
-    const [rooms, setRooms] = useState(() => StorageService.get(STORAGE_KEYS.ROOMS, INITIAL_ROOMS));
-    const [bookings, setBookings] = useState(() => StorageService.get(STORAGE_KEYS.BOOKINGS, INITIAL_BOOKINGS));
-    const [staffUsers, setStaffUsers] = useState(() => StorageService.get(STORAGE_KEYS.STAFF_USERS, INITIAL_STAFF_USERS));
-    const [rolesConfig, setRolesConfig] = useState(() => StorageService.get(STORAGE_KEYS.ROLES_CONFIG, INITIAL_ROLES));
-    const [activeStaffId, setActiveStaffId] = useState(() => StorageService.get(STORAGE_KEYS.ACTIVE_STAFF_ID, 'NV-001'));
-    const [transactions, setTransactions] = useState(() => StorageService.get(STORAGE_KEYS.TRANSACTIONS, INITIAL_TRANSACTIONS));
-    const [historicalRevenue, setHistoricalRevenue] = useState(() => StorageService.get(STORAGE_KEYS.HISTORICAL_REVENUE, generateDefaultHistoricalRevenue()));
+    const [rooms, setRooms] = useState([]);
+    const [bookings, setBookings] = useState([]);
+    const [staffUsers, setStaffUsers] = useState([]);
+    const [rolesConfig, setRolesConfig] = useState([]);
+    const [activeStaffId, setActiveStaffId] = useState(() => StorageService.get(STORAGE_KEYS.ACTIVE_STAFF_ID, ''));
+    const [transactions, setTransactions] = useState([]);
+    const [historicalRevenue, setHistoricalRevenue] = useState(() => generateDefaultHistoricalRevenue());
+    const [authToken, setAuthToken] = useState(() => StorageService.get(STORAGE_KEYS.AUTH_TOKEN, null));
     const [currentUser, setCurrentUser] = useState(() => {
+        const token = StorageService.get(STORAGE_KEYS.AUTH_TOKEN, null);
+        if (!token) return null;
         const u = StorageService.get(STORAGE_KEYS.USER, null);
         if (u) {
-            // Khách hàng / user bình thường: đảm bảo tuyệt đối không có quyền admin
             if (u.role === 'customer' || u.role === 'user') {
                 return {
                     ...u,
@@ -50,64 +101,104 @@ export function useHotelController() {
                 return {
                     ...u,
                     role: 'staff',
-                    roleId: u.roleId || 'admin',
-                    hasAdminAccess: true,
-                    roleName: u.roleName || 'Giám Đốc / Tổng Quản Lý'
+                    hasAdminAccess: true
                 };
             }
         }
         return u;
     });
     const [isBackendConnected, setIsBackendConnected] = useState(false);
+    const isSysAdminUser = checkIsSysAdmin(currentUser);
 
     // -------------------------------------------------------------
-    // Live Sync with Backend Spring Boot & MongoDB Atlas (Zero-Mock)
+    // Live Sync with Backend Spring Boot & MongoDB Atlas (Auth-Aware)
     // -------------------------------------------------------------
-    useEffect(() => {
-        let isMounted = true;
-        async function fetchAtlasData() {
-            try {
-                const [dbRooms, dbBookings, dbTransactions, dbStaff, dbRoles] = await Promise.all([
-                    ApiService.getRooms(),
-                    ApiService.getBookings(),
-                    ApiService.getTransactions(),
-                    ApiService.getStaff(),
-                    ApiService.getRoles()
-                ]);
+    async function syncAtlasData(knownUser = null, tokenOverride = null) {
+        try {
+            const token = tokenOverride || StorageService.get(STORAGE_KEYS.AUTH_TOKEN, null);
+            const dbRoomsPromise = ApiService.getRooms();
 
-                if (!isMounted) return;
-
-                if (Array.isArray(dbRooms) && dbRooms.length > 0) {
+            if (!token) {
+                const dbRooms = await dbRoomsPromise;
+                if (Array.isArray(dbRooms)) {
                     setRooms(dbRooms);
-                }
-                if (Array.isArray(dbBookings) && dbBookings.length > 0) {
-                    setBookings(dbBookings);
-                }
-                if (Array.isArray(dbTransactions) && dbTransactions.length > 0) {
-                    setTransactions(dbTransactions);
-                    const dynamicRev = buildDynamicHistoricalRevenue(dbTransactions, dbBookings || [], dbRooms || []);
-                    setHistoricalRevenue(dynamicRev);
                     setIsBackendConnected(true);
                 }
-                if (Array.isArray(dbStaff) && dbStaff.length > 0) {
-                    setStaffUsers(dbStaff);
-                }
-                if (Array.isArray(dbRoles) && dbRoles.length > 0) {
-                    setRolesConfig(dbRoles);
-                }
-            } catch (err) {
-                console.warn('[useHotelController] Lỗi nạp dữ liệu từ Atlas ban đầu:', err);
+                setBookings([]);
+                setTransactions([]);
+                setStaffUsers([]);
+                setRolesConfig([]);
+                return;
             }
+
+            let effectiveUser = knownUser;
+            if (!effectiveUser) {
+                const meRes = await ApiService.getMe(token);
+                if (meRes) {
+                    if (meRes.ok && meRes.data) {
+                        effectiveUser = normalizeAuthUser(meRes.data);
+                        setCurrentUser(effectiveUser);
+                        if (effectiveUser?.hasAdminAccess && effectiveUser.id) {
+                            setActiveStaffId(prev => (checkIsSysAdmin(effectiveUser) && prev) ? prev : effectiveUser.id);
+                        }
+                    } else if (meRes.status === 401 || meRes.status === 403) {
+                        setAuthToken(null);
+                        StorageService.set(STORAGE_KEYS.AUTH_TOKEN, null);
+                        setCurrentUser(null);
+                        setBookings([]);
+                        setTransactions([]);
+                        setStaffUsers([]);
+                        setRolesConfig([]);
+                        setViewMode('landing');
+                        const dbRooms = await dbRoomsPromise;
+                        if (Array.isArray(dbRooms)) setRooms(dbRooms);
+                        return;
+                    }
+                }
+            }
+
+            const hasStaffAccess = Boolean(effectiveUser?.hasAdminAccess);
+            const [dbRooms, dbBookings, dbRoles, dbTransactions, dbStaff] = await Promise.all([
+                dbRoomsPromise,
+                ApiService.getBookings().catch(() => null),
+                ApiService.getRoles().catch(() => null),
+                hasStaffAccess ? ApiService.getTransactions().catch(() => null) : Promise.resolve([]),
+                hasStaffAccess ? ApiService.getStaff().catch(() => null) : Promise.resolve([])
+            ]);
+
+            if (Array.isArray(dbRooms)) setRooms(dbRooms);
+            if (Array.isArray(dbBookings)) setBookings(dbBookings);
+            if (Array.isArray(dbRoles)) setRolesConfig(dbRoles);
+            if (Array.isArray(dbTransactions)) {
+                setTransactions(dbTransactions);
+                setHistoricalRevenue(buildDynamicHistoricalRevenue(dbTransactions, dbBookings || [], dbRooms || []));
+            }
+            if (Array.isArray(dbStaff)) {
+                setStaffUsers(dbStaff);
+                if (effectiveUser?.id) {
+                    setActiveStaffId(prev => (checkIsSysAdmin(effectiveUser) && prev) ? prev : effectiveUser.id);
+                }
+            }
+
+            if (dbRooms || dbBookings || dbTransactions || dbStaff || dbRoles) {
+                setIsBackendConnected(true);
+            }
+        } catch (err) {
+            console.warn('[useHotelController] Lỗi nạp dữ liệu từ Atlas:', err);
         }
-        fetchAtlasData();
-        return () => { isMounted = false; };
+    }
+
+    useEffect(() => {
+        syncAtlasData();
     }, []);
 
-    // Tự động tính toán lại dữ liệu doanh thu năm 2026 từ các giao dịch thực tế
+    // Tự động tính toán lại dữ liệu doanh thu từ các giao dịch thực tế
     useEffect(() => {
         if (transactions && transactions.length > 0) {
             const dynamicRev = buildDynamicHistoricalRevenue(transactions, bookings, rooms);
             setHistoricalRevenue(dynamicRev);
+        } else {
+            setHistoricalRevenue(generateDefaultHistoricalRevenue());
         }
     }, [transactions, bookings, rooms]);
 
@@ -115,7 +206,8 @@ export function useHotelController() {
     // UI View Navigation State: Không phải quyền user -> Vào thẳng trang quản trị
     // -------------------------------------------------------------
     const [viewMode, setViewMode] = useState(() => {
-        const u = StorageService.get(STORAGE_KEYS.USER, null);
+        const token = StorageService.get(STORAGE_KEYS.AUTH_TOKEN, null);
+        const u = token ? StorageService.get(STORAGE_KEYS.USER, null) : null;
         if (u) {
             const isCustomer = u.role === 'customer' || u.role === 'user';
             if (!isCustomer && (u.role === 'staff' || u.role === 'admin' || u.hasAdminAccess === true)) {
@@ -148,16 +240,11 @@ export function useHotelController() {
     });
 
     // -------------------------------------------------------------
-    // Sync with LocalStorage via StorageService
+    // Sync auth session & active role with LocalStorage via StorageService
     // -------------------------------------------------------------
-    useEffect(() => { StorageService.set(STORAGE_KEYS.ROOMS, rooms); }, [rooms]);
-    useEffect(() => { StorageService.set(STORAGE_KEYS.BOOKINGS, bookings); }, [bookings]);
-    useEffect(() => { StorageService.set(STORAGE_KEYS.STAFF_USERS, staffUsers); }, [staffUsers]);
-    useEffect(() => { StorageService.set(STORAGE_KEYS.ROLES_CONFIG, rolesConfig); }, [rolesConfig]);
     useEffect(() => { StorageService.set(STORAGE_KEYS.ACTIVE_STAFF_ID, activeStaffId); }, [activeStaffId]);
-    useEffect(() => { StorageService.set(STORAGE_KEYS.TRANSACTIONS, transactions); }, [transactions]);
-    useEffect(() => { StorageService.set(STORAGE_KEYS.HISTORICAL_REVENUE, historicalRevenue); }, [historicalRevenue]);
     useEffect(() => { StorageService.set(STORAGE_KEYS.USER, currentUser); }, [currentUser]);
+    useEffect(() => { StorageService.set(STORAGE_KEYS.AUTH_TOKEN, authToken); }, [authToken]);
 
     // -------------------------------------------------------------
     // Notification Service (Toast)
@@ -173,9 +260,28 @@ export function useHotelController() {
     // -------------------------------------------------------------
     // Permission Verification Service (RBAC)
     // -------------------------------------------------------------
+    const handleSetActiveStaffId = newStaffId => {
+        if (!isSysAdminUser) {
+            setActiveStaffId(currentUser?.id || '');
+            return;
+        }
+        setActiveStaffId(newStaffId);
+    };
+
     const checkPermission = permKey => {
-        const activeStaff = staffUsers.find(s => s.id === activeStaffId) || staffUsers[0];
-        return hasPermission(activeStaff, rolesConfig, permKey);
+        if (!currentUser || (currentUser.role === 'customer' && !currentUser.hasAdminAccess)) {
+            return false;
+        }
+        if (isSysAdminUser) {
+            const simulatedStaff = staffUsers.find(s => s.id === activeStaffId);
+            if (simulatedStaff) {
+                return hasPermission(simulatedStaff, rolesConfig, permKey);
+            }
+        }
+        if (currentUser.effectivePermissions && currentUser.effectivePermissions[permKey] !== undefined) {
+            return !!currentUser.effectivePermissions[permKey];
+        }
+        return hasPermission(currentUser, rolesConfig, permKey);
     };
 
     // -------------------------------------------------------------
@@ -212,130 +318,113 @@ export function useHotelController() {
     };
 
     // -------------------------------------------------------------
-    // Business Logic: Authentication & Profile (RBAC - Sysadmin Auth)
+    // Business Logic: Authentication & Profile (100% Backend JWT Auth)
     // -------------------------------------------------------------
-    const handleLoginSuccess = ({ username, password }) => {
-        if (!username || !username.trim()) {
-            addToast('Lỗi đăng nhập', 'Vui lòng nhập tên đăng nhập, email hoặc số CCCD.', 'danger');
+    const handleLoginSuccess = async ({ username, password }) => {
+        if (!username || !username.trim() || !password) {
+            addToast('Lỗi đăng nhập', 'Vui lòng nhập đầy đủ tên đăng nhập và mật khẩu.', 'danger');
             return;
         }
 
-        const input = username.trim().toLowerCase();
-
-        // 1. Kiểm tra xem tài khoản có thuộc danh sách nhân sự / sysadmin nội bộ hay không
-        // Chỉ khớp tài khoản root admin chính thức ('admin', 'sysadmin') hoặc tài khoản có trong danh sách staffUsers
-        const isRootAdmin = input === 'admin' || input === 'sysadmin';
-        const matchedStaff = staffUsers.find(s =>
-            (s.email && s.email.toLowerCase() === input) ||
-            (s.id && s.id.toLowerCase() === input) ||
-            (s.phone && s.phone === input) ||
-            (s.name && s.name.toLowerCase() === input) ||
-            (isRootAdmin && s.roleId === 'admin')
-        ) || (isRootAdmin ? staffUsers[0] : null);
-
-        if (matchedStaff) {
-            // Kiểm tra trạng thái tài khoản
-            if (matchedStaff.status === 'locked') {
-                addToast('Tài khoản bị khóa', 'Tài khoản nhân sự này đã bị Sysadmin tạm khóa. Vui lòng liên hệ quản trị viên.', 'danger');
-                return;
-            }
-
-            // Kiểm tra cấu hình quyền hạn vai trò
-            const roleObj = rolesConfig.find(r => r.id === matchedStaff.roleId);
-            const staffObj = {
-                id: matchedStaff.id,
-                username: matchedStaff.email || matchedStaff.id,
-                name: matchedStaff.name,
-                email: matchedStaff.email,
-                phone: matchedStaff.phone,
-                role: 'staff',
-                roleId: matchedStaff.roleId,
-                roleName: roleObj ? roleObj.name : 'Giám Đốc / Tổng Quản Lý',
-                staffId: matchedStaff.id,
-                hasAdminAccess: true,
-                avatar: matchedStaff.name.charAt(0).toUpperCase(),
-                cccd: '079095001234',
-                cccdDate: '2021-08-20',
-                cccdPlace: 'Cục CSQLHC về TTXH',
-                cccdFront: DEFAULT_CCCD_FRONT,
-                cccdBack: DEFAULT_CCCD_BACK
-            };
-
-            setCurrentUser(staffObj);
-            setActiveStaffId(matchedStaff.id);
-            closeModal();
-            setViewMode('admin'); // Không phải quyền user -> Vào thẳng trang quản trị khách sạn luôn!
-            addToast('Đăng nhập Quản Trị thành công', `Chào mừng ${roleObj ? roleObj.name : 'Quản lý'} ${matchedStaff.name} vào hệ thống quản trị.`);
+        const res = await ApiService.login(username.trim(), password);
+        if (!res.ok || !res.data || !res.data.token) {
+            addToast('Đăng nhập thất bại', res.message || 'Tài khoản hoặc mật khẩu không chính xác.', 'danger');
             return;
         }
 
-        // 2. Không được cấp quyền quản trị -> Tài khoản chỉ là một Khách Hàng (role 'customer') thông thường
-        const savedCustomers = StorageService.get(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', []);
-        const foundCustomer = savedCustomers.find(c =>
-            (c.username && c.username.toLowerCase() === input) ||
-            (c.email && c.email.toLowerCase() === input) ||
-            (c.cccd && c.cccd === input) ||
-            (c.phone && c.phone === input) ||
-            (c.name && c.name.toLowerCase() === input)
-        );
-
-        let userObj;
-        if (foundCustomer) {
-            userObj = { ...foundCustomer, role: 'customer', hasAdminAccess: false };
-        } else {
-            userObj = {
-                username,
-                name: username.includes('@') ? username.split('@')[0].toUpperCase() : username.toUpperCase(),
-                phone: '0901234567',
-                email: username.includes('@') ? username : `${username.toLowerCase()}@email.com`,
-                dob: '1995-05-15',
-                gender: 'Nam',
-                address: 'TP. Hồ Chí Minh',
-                cccd: input.match(/^\d{12}$/) ? input : '079095001234',
-                cccdDate: '2021-08-20',
-                cccdPlace: 'Cục CSQLHC về TTXH',
-                cccdFront: DEFAULT_CCCD_FRONT,
-                cccdBack: DEFAULT_CCCD_BACK,
-                role: 'customer',
-                hasAdminAccess: false,
-                avatar: username.charAt(0).toUpperCase()
-            };
-            StorageService.set(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', [...savedCustomers, userObj]);
-        }
-
+        const userObj = normalizeAuthUser(res.data);
+        setAuthToken(res.data.token);
+        StorageService.set(STORAGE_KEYS.AUTH_TOKEN, res.data.token);
         setCurrentUser(userObj);
         closeModal();
-        setViewMode('landing');
-        addToast('Đăng nhập thành công', `Chào mừng quý khách ${userObj.name} đến với Grand Hotel.`);
+
+        if (userObj.hasAdminAccess) {
+            setActiveStaffId(userObj.id);
+            setViewMode('admin');
+            addToast('Đăng nhập Quản Trị thành công', `Chào mừng ${userObj.roleName || 'Quản lý'} ${userObj.name} vào hệ thống quản trị.`);
+        } else {
+            setActiveStaffId('');
+            setViewMode('landing');
+            addToast('Đăng nhập thành công', `Chào mừng quý khách ${userObj.name} đến với Grand Hotel.`);
+        }
+        await syncAtlasData(userObj, res.data.token);
     };
 
-    const handleRegisterSuccess = newUser => {
-        const userWithRole = {
-            ...newUser,
-            role: 'customer',
-            hasAdminAccess: false
+    const handleRegisterSuccess = async newUser => {
+        const payload = {
+            username: newUser.username || newUser.email,
+            password: newUser.password,
+            fullName: newUser.fullName || newUser.name,
+            email: newUser.email,
+            phone: newUser.phone,
+            dob: newUser.dob,
+            gender: newUser.gender,
+            nationality: newUser.nationality,
+            address: newUser.address,
+            cccd: newUser.cccd,
+            cccdDate: newUser.cccdDate,
+            cccdPlace: newUser.cccdPlace,
+            cccdFront: newUser.cccdFront,
+            cccdBack: newUser.cccdBack,
+            avatar: newUser.avatar
         };
-        const savedCustomers = StorageService.get(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', []);
-        const updatedList = [...savedCustomers.filter(c => c.username !== newUser.username && c.email !== newUser.email), userWithRole];
-        StorageService.set(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', updatedList);
 
-        setCurrentUser(userWithRole);
+        const res = await ApiService.register(payload);
+        if (!res.ok || !res.data || !res.data.token) {
+            addToast('Đăng ký thất bại', res.message || 'Không thể đăng ký tài khoản trên máy chủ.', 'danger');
+            return;
+        }
+
+        const userObj = normalizeAuthUser(res.data);
+        setAuthToken(res.data.token);
+        StorageService.set(STORAGE_KEYS.AUTH_TOKEN, res.data.token);
+        setCurrentUser(userObj);
+        setActiveStaffId('');
         closeModal();
         setViewMode('landing');
-        addToast('Đăng ký & Định danh CCCD hoàn tất!', `Hồ sơ căn cước của ${newUser.name} đã được kích hoạt.`, 'success');
+        addToast('Đăng ký & Định danh CCCD hoàn tất!', `Hồ sơ căn cước của ${userObj.name} đã được kích hoạt trên hệ thống.`, 'success');
+        await syncAtlasData(userObj, res.data.token);
     };
 
-    const handleUpdateProfileSuccess = updatedUser => {
-        setCurrentUser(updatedUser);
-        const savedCustomers = StorageService.get(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', []);
-        const updatedList = savedCustomers.map(c => (c.username === updatedUser.username || c.email === updatedUser.email) ? updatedUser : c);
-        StorageService.set(STORAGE_KEYS.CUSTOMERS || 'grand_hotel_registered_customers_v2', updatedList);
+    const handleUpdateProfileSuccess = async updatedUser => {
+        const res = await ApiService.updateProfile(authToken, {
+            fullName: updatedUser.name,
+            name: updatedUser.name,
+            phone: updatedUser.phone,
+            dob: updatedUser.dob,
+            gender: updatedUser.gender,
+            nationality: updatedUser.nationality,
+            address: updatedUser.address,
+            cccd: updatedUser.cccd,
+            cccdDate: updatedUser.cccdDate,
+            cccdPlace: updatedUser.cccdPlace,
+            cccdFront: updatedUser.cccdFront,
+            cccdBack: updatedUser.cccdBack,
+            avatar: updatedUser.avatar
+        });
+
+        if (!res.ok || !res.data) {
+            addToast('Cập nhật thất bại', res.message || 'Không thể lưu thay đổi hồ sơ lên cơ sở dữ liệu.', 'danger');
+            return;
+        }
+
+        const userObj = normalizeAuthUser(res.data);
+        setCurrentUser(userObj);
         closeModal();
-        addToast('Cập nhật hồ sơ thành công', 'Thông tin cá nhân và ảnh CCCD đã được lưu trữ an toàn.', 'success');
+        addToast('Cập nhật hồ sơ thành công', 'Thông tin cá nhân và ảnh CCCD đã được lưu trữ lên cơ sở dữ liệu.', 'success');
     };
 
     const handleLogout = () => {
+        setAuthToken(null);
+        StorageService.set(STORAGE_KEYS.AUTH_TOKEN, null);
+        StorageService.set(STORAGE_KEYS.ACTIVE_STAFF_ID, '');
         setCurrentUser(null);
+        setActiveStaffId('');
+        setBookings([]);
+        setTransactions([]);
+        setStaffUsers([]);
+        setRolesConfig([]);
+        setPendingBookingPayment(null);
         setViewMode('landing');
         addToast('Đã đăng xuất', 'Quý khách đã đăng xuất an toàn khỏi hệ thống.', 'info');
     };
@@ -358,20 +447,30 @@ export function useHotelController() {
         openModal('booking', { room });
     };
 
-    const handleSubmitBooking = bookingPayload => {
-        const { room, customerName, phone, cccd, dob, checkIn, checkOut, nights, addons, grandTotal, depositNeeded, paymentMethod } = bookingPayload;
-        const bookingId = 'BK-' + Math.floor(1000 + Math.random() * 9000);
+    const handleSubmitBooking = async bookingPayload => {
+        const {
+            room, customerName, phone, cccd, dob,
+            cccdDate, cccdPlace, cccdFront, cccdBack,
+            checkIn, checkOut, nights, addons,
+            grandTotal, depositNeeded, paymentMethod, isWalkIn
+        } = bookingPayload;
+        const bookingId = generateUniqueId('BK');
+        const bookingStatus = isWalkIn ? 'Đã check-in' : 'Chờ check-in';
+        const isPendingOnlineVietQR = paymentMethod === 'VietQR' && !isWalkIn && !currentUser?.hasAdminAccess;
+        const paidAmount = ((paymentMethod === 'Tiền mặt' && !isWalkIn) || isPendingOnlineVietQR) ? 0 : depositNeeded;
 
         const newBooking = {
             id: bookingId,
+            userId: !isWalkIn ? (currentUser?.id || null) : null,
+            username: !isWalkIn ? (currentUser?.username || null) : null,
             customerName,
             phone,
             cccd,
-            cccdDate: currentUser?.cccdDate || '2021-08-20',
-            cccdPlace: currentUser?.cccdPlace || 'Cục CSQLHC về TTXH',
+            cccdDate: cccdDate || (!isWalkIn ? (currentUser?.cccdDate || '') : ''),
+            cccdPlace: cccdPlace || (!isWalkIn ? (currentUser?.cccdPlace || '') : ''),
             dob,
-            cccdFront: currentUser?.cccdFront || DEFAULT_CCCD_FRONT,
-            cccdBack: currentUser?.cccdBack || DEFAULT_CCCD_BACK,
+            cccdFront: cccdFront || (!isWalkIn ? (currentUser?.cccdFront || '') : ''),
+            cccdBack: cccdBack || (!isWalkIn ? (currentUser?.cccdBack || '') : ''),
             roomId: room.id,
             roomName: room.name,
             checkIn,
@@ -382,13 +481,13 @@ export function useHotelController() {
             totalAmount: grandTotal,
             depositAmount: depositNeeded,
             depositMethod: paymentMethod,
-            paidAmount: paymentMethod === 'Tiền mặt' ? 0 : depositNeeded,
-            remainingAmount: grandTotal - (paymentMethod === 'Tiền mặt' ? 0 : depositNeeded),
-            status: 'Chờ check-in',
+            paidAmount,
+            remainingAmount: grandTotal - paidAmount,
+            status: bookingStatus,
             createdAt: new Date().toISOString().split('T')[0]
         };
 
-        if (paymentMethod === 'VietQR' && depositNeeded > 0) {
+        if (paymentMethod === 'VietQR' && depositNeeded > 0 && !isWalkIn) {
             setPendingBookingPayment(newBooking);
             closeModal();
             openModal('qrPayment', {
@@ -397,7 +496,28 @@ export function useHotelController() {
                 customerName
             });
         } else {
-            finalizeBooking(newBooking);
+            await finalizeBooking(newBooking);
+            if (isWalkIn && depositNeeded > 0) {
+                const newTx = {
+                    id: generateUniqueId('TX'),
+                    bookingId,
+                    customerName,
+                    type: `Thu cọc trực tiếp phòng ${room.id}`,
+                    method: paymentMethod,
+                    amount: depositNeeded,
+                    date: new Date().toLocaleString('vi-VN'),
+                    staff: staffUsers.find(s => s.id === activeStaffId)?.name || currentUser?.name || 'Nhân viên lễ tân',
+                    year: new Date().getFullYear(),
+                    month: new Date().getMonth() + 1,
+                    status: 'Đã hoàn tất'
+                };
+                setTransactions(prev => [newTx, ...prev]);
+                try {
+                    await ApiService.createTransaction(newTx);
+                } catch (err) {
+                    console.warn('[useHotelController] Lỗi ghi tx walk-in lên Atlas:', err);
+                }
+            }
             closeModal();
         }
     };
@@ -405,25 +525,30 @@ export function useHotelController() {
     const handleConfirmQrPaid = async () => {
         if (!pendingBookingPayment) return;
 
+        const savedBooking = await finalizeBooking(pendingBookingPayment);
+        const targetBookingId = savedBooking?.id || pendingBookingPayment.id;
         const newTx = {
-            id: 'TX-' + Math.floor(100 + Math.random() * 900),
-            bookingId: pendingBookingPayment.id,
+            id: generateUniqueId('TX'),
+            bookingId: targetBookingId,
             customerName: pendingBookingPayment.customerName,
             type: `Đặt cọc phòng (${formatVND(pendingBookingPayment.depositAmount)})`,
             method: 'VietQR',
             amount: pendingBookingPayment.depositAmount,
             date: new Date().toLocaleString('vi-VN'),
             staff: 'Cổng Online VietQR',
-            year: 2026,
+            year: new Date().getFullYear(),
             month: new Date().getMonth() + 1,
-            status: 'Đã hoàn tất'
+            status: 'Chờ xác nhận'
         };
 
         setTransactions(prev => [newTx, ...prev]);
-        finalizeBooking(pendingBookingPayment);
         setPendingBookingPayment(null);
         closeModal();
-        addToast('Xác nhận thành công!', `Đã nhận tiền cọc ${formatVND(pendingBookingPayment.depositAmount)} qua VietQR!`, 'success');
+        addToast(
+            'Đặt phòng thành công!',
+            `Đã ghi nhận thông báo chuyển khoản ${formatVND(pendingBookingPayment.depositAmount)} qua VietQR (đang chờ lễ tân xác nhận).`,
+            'info'
+        );
 
         try {
             await ApiService.createTransaction(newTx);
@@ -433,91 +558,43 @@ export function useHotelController() {
     };
 
     const finalizeBooking = async booking => {
+        const nextRoomStatus = booking.status === 'Đã check-in' ? 'Đang thuê' : 'Đã đặt';
         setBookings(prev => [booking, ...prev]);
         setRooms(prev =>
-            prev.map(r => (r.id === booking.roomId ? { ...r, status: 'Đã đặt', currentGuest: booking.customerName } : r))
+            prev.map(r => (r.id === booking.roomId ? { ...r, status: nextRoomStatus, currentGuest: booking.customerName } : r))
         );
-        addToast('Đặt phòng thành công!', `Mã đơn: ${booking.id}. Định danh CCCD đã hoàn tất.`, 'success');
 
+        let persisted = booking;
         try {
-            await ApiService.createBooking(booking);
+            const saved = await ApiService.createBooking(booking);
+            if (saved && saved.id) {
+                persisted = saved;
+                setBookings(prev => [saved, ...prev.filter(b => b.id !== booking.id && b.id !== saved.id)]);
+            }
         } catch (err) {
             console.warn('[useHotelController] Lỗi ghi booking lên Atlas:', err);
         }
+
+        addToast(
+            persisted.status === 'Đã check-in' ? 'Check-in hoàn tất!' : 'Đặt phòng thành công!',
+            `Mã đơn: ${persisted.id}. Định danh CCCD đã hoàn tất.`,
+            'success'
+        );
+        return persisted;
     };
 
     // -------------------------------------------------------------
     // Business Logic: Admin Front-Desk & Room Operations
     // -------------------------------------------------------------
-    const handleQuickCheckIn = async roomId => {
-        const guestName = prompt('Nhập họ tên khách nhận phòng:', 'NGUYỄN VĂN HẢI');
-        if (!guestName) return;
-
-        const guestPhone = prompt('Nhập số điện thoại khách:', '0901234567') || '0901234567';
-        const guestCccd = prompt('Nhập số CCCD khách:', '079095009988') || '079095009988';
-
-        const room = rooms.find(r => r.id === roomId);
-        if (!room) return;
-
-        const bookingId = 'BK-' + Math.floor(1000 + Math.random() * 9000);
-        const deposit = 500000;
-
-        const newBooking = {
-            id: bookingId,
-            customerName: guestName.toUpperCase(),
-            phone: guestPhone,
-            cccd: guestCccd,
-            cccdDate: '2021-08-20',
-            cccdPlace: 'Cục CSQLHC về TTXH',
-            dob: '1992-06-18',
-            cccdFront: DEFAULT_CCCD_FRONT,
-            cccdBack: DEFAULT_CCCD_BACK,
-            roomId,
-            roomName: room.name,
-            checkIn: todayStr,
-            checkOut: tomorrowStr,
-            nights: 1,
-            addons: [],
-            minibar: 0,
-            totalAmount: room.price,
-            depositAmount: deposit,
-            depositMethod: 'Tiền mặt',
-            paidAmount: deposit,
-            remainingAmount: room.price - deposit,
-            status: 'Đã check-in',
-            createdAt: todayStr
-        };
-
-        const newTx = {
-            id: 'TX-' + Math.floor(100 + Math.random() * 900),
-            bookingId,
-            customerName: guestName.toUpperCase(),
-            type: `Cọc trực tiếp phòng ${roomId}`,
-            method: 'Tiền mặt',
-            amount: deposit,
-            date: new Date().toLocaleString('vi-VN'),
-            staff: staffUsers.find(s => s.id === activeStaffId)?.name || 'Nhân viên lễ tân',
-            year: 2026,
-            month: new Date().getMonth() + 1,
-            status: 'Đã hoàn tất'
-        };
-
-        setRooms(prev =>
-            prev.map(r => (r.id === roomId ? { ...r, status: 'Đang thuê', currentGuest: guestName.toUpperCase() } : r))
-        );
-        setBookings(prev => [newBooking, ...prev]);
-        setTransactions(prev => [newTx, ...prev]);
-
-        addToast('Check-in hoàn tất', `Phòng ${roomId} đã giao cho khách. Đã thu cọc ${formatVND(deposit)}.`, 'success');
-
-        try {
-            await Promise.all([
-                ApiService.createBooking(newBooking),
-                ApiService.createTransaction(newTx)
-            ]);
-        } catch (err) {
-            console.warn('[useHotelController] Lỗi lưu QuickCheckIn lên Atlas:', err);
+    const handleQuickCheckIn = roomId => {
+        const targetRoom = roomId
+            ? rooms.find(r => r.id === roomId)
+            : (rooms.find(r => r.status === 'Trống') || rooms[0]);
+        if (!targetRoom) {
+            addToast('Không có phòng khả dụng', 'Hiện không có phòng trống để nhận khách trực tiếp.', 'danger');
+            return;
         }
+        openModal('booking', { room: targetRoom, isWalkIn: true });
     };
 
     const handleConfirmCheckIn = async roomId => {
@@ -601,15 +678,15 @@ export function useHotelController() {
         let newTx = null;
         if (remaining > 0) {
             newTx = {
-                id: 'TX-' + Math.floor(100 + Math.random() * 900),
+                id: generateUniqueId('TX'),
                 bookingId: booking ? booking.id : `P-${room.id}`,
                 customerName: booking ? booking.customerName : 'Khách Lưu Trú',
                 type: `Quyết toán trả phòng ${room.id}`,
                 method,
                 amount: remaining,
                 date: new Date().toLocaleString('vi-VN'),
-                staff: staffUsers.find(s => s.id === activeStaffId)?.name || 'Lễ tân',
-                year: 2026,
+                staff: staffUsers.find(s => s.id === activeStaffId)?.name || currentUser?.name || 'Lễ tân',
+                year: new Date().getFullYear(),
                 month: new Date().getMonth() + 1,
                 status: 'Đã hoàn tất'
             };
@@ -621,8 +698,9 @@ export function useHotelController() {
 
         try {
             if (booking) {
-                await ApiService.updateBookingStatus(booking.id, 'Đã hoàn thành');
+                await ApiService.updateBookingStatus(booking.id, 'Đã hoàn thành', booking.totalAmount, 0);
             }
+            await ApiService.saveRoom({ ...room, status: 'Đang dọn', currentGuest: null });
             if (newTx) {
                 await ApiService.createTransaction(newTx);
             }
@@ -636,15 +714,15 @@ export function useHotelController() {
     // -------------------------------------------------------------
     const handleCreateManualTx = async txPayload => {
         const newTx = {
-            id: 'TX-' + Math.floor(100 + Math.random() * 900),
+            id: generateUniqueId('TX'),
             bookingId: 'THU-LE',
             customerName: txPayload.customerName,
             type: txPayload.reason,
             method: txPayload.method,
             amount: txPayload.amount,
             date: new Date().toLocaleString('vi-VN'),
-            staff: staffUsers.find(s => s.id === activeStaffId)?.name || 'Thủ quỹ',
-            year: 2026,
+            staff: staffUsers.find(s => s.id === activeStaffId)?.name || currentUser?.name || 'Thủ quỹ',
+            year: new Date().getFullYear(),
             month: new Date().getMonth() + 1,
             status: 'Đã hoàn tất'
         };
@@ -683,84 +761,109 @@ export function useHotelController() {
     // -------------------------------------------------------------
     // Business Logic: Staff Management
     // -------------------------------------------------------------
-    const handleSaveStaff = staffPayload => {
+    const handleSaveStaff = async staffPayload => {
+        const matchedRole = rolesConfig.find(role => role.id === staffPayload.roleId);
+        const resolvedRoleName = matchedRole ? matchedRole.name : staffPayload.roleId;
+
         if (staffPayload.editId) {
             setStaffUsers(prev =>
                 prev.map(s =>
                     s.id === staffPayload.editId
                         ? {
                               ...s,
+                              username: staffPayload.username || s.username,
                               name: staffPayload.name,
+                              fullName: staffPayload.name,
                               email: staffPayload.email,
                               phone: staffPayload.phone,
                               roleId: staffPayload.roleId,
-                              status: staffPayload.status
+                              roleName: resolvedRoleName,
+                              status: staffPayload.status,
+                              active: staffPayload.status === 'active'
                           }
                         : s
                 )
             );
-            if (currentUser && (currentUser.staffId === staffPayload.editId || currentUser.email === staffPayload.email)) {
+            if (currentUser && (currentUser.staffId === staffPayload.editId || currentUser.id === staffPayload.editId || currentUser.email === staffPayload.email)) {
                 if (staffPayload.status === 'locked') {
+                    setAuthToken(null);
+                    StorageService.set(STORAGE_KEYS.AUTH_TOKEN, null);
                     setCurrentUser(null);
                     setViewMode('landing');
                     addToast('Tài khoản bị khóa', 'Tài khoản của bạn đã bị Sysadmin tạm khóa.', 'danger');
                 } else {
-                    const r = rolesConfig.find(role => role.id === staffPayload.roleId);
                     setCurrentUser(prev => ({
                         ...prev,
                         name: staffPayload.name,
+                        fullName: staffPayload.name,
                         email: staffPayload.email,
                         phone: staffPayload.phone,
                         roleId: staffPayload.roleId,
-                        roleName: r ? r.name : staffPayload.roleId
+                        roleName: resolvedRoleName
                     }));
                 }
             }
             const updatedStaff = {
-                id: staffPayload.id,
+                id: staffPayload.editId,
+                username: staffPayload.username,
                 name: staffPayload.name,
                 fullName: staffPayload.name,
                 email: staffPayload.email,
                 phone: staffPayload.phone,
                 roleId: staffPayload.roleId,
-                roleName: r ? r.name : staffPayload.roleId,
-                status: staffPayload.status,
-                active: staffPayload.status === 'active'
-            };
-            ApiService.saveStaff(updatedStaff);
-            addToast('Cập nhật nhân sự', `Đã cập nhật thông tin cho ${staffPayload.name}.`, 'success');
-        } else {
-            const newId = 'NV-' + String(staffUsers.length + 1).padStart(3, '0');
-            const newStaff = {
-                id: newId,
-                name: staffPayload.name,
-                fullName: staffPayload.name,
-                email: staffPayload.email,
-                phone: staffPayload.phone,
-                roleId: staffPayload.roleId,
+                roleName: resolvedRoleName,
                 status: staffPayload.status,
                 active: staffPayload.status === 'active',
-                lastLogin: 'Vừa tạo'
+                ...(staffPayload.password ? { password: staffPayload.password } : {})
             };
-            setStaffUsers(prev => [...prev, newStaff]);
-            ApiService.saveStaff(newStaff);
-            addToast('Thêm nhân sự thành công', `Đã cấp tài khoản cho ${staffPayload.name} (${newId}).`, 'success');
+            const saved = await ApiService.saveStaff(updatedStaff);
+            if (saved && saved.id) {
+                setStaffUsers(prev => prev.map(s => (s.id === saved.id ? saved : s)));
+            }
+            addToast('Cập nhật nhân sự', `Đã cập nhật thông tin cho ${staffPayload.name}.`, 'success');
+        } else {
+            const newId = generateUniqueId('NV');
+            const newStaffPayload = {
+                id: newId,
+                username: staffPayload.username || staffPayload.email,
+                password: staffPayload.password,
+                name: staffPayload.name,
+                fullName: staffPayload.name,
+                email: staffPayload.email,
+                phone: staffPayload.phone,
+                roleId: staffPayload.roleId,
+                roleName: resolvedRoleName,
+                status: staffPayload.status,
+                active: staffPayload.status === 'active',
+                lastLogin: 'Chưa đăng nhập'
+            };
+            const saved = await ApiService.saveStaff(newStaffPayload);
+            if (saved) {
+                setStaffUsers(prev => [...prev, saved]);
+                addToast('Thêm nhân sự thành công', `Đã cấp tài khoản cho ${staffPayload.name} (${saved.id || newId}).`, 'success');
+            } else {
+                addToast('Lỗi lưu nhân sự', 'Không thể lưu thông tin nhân sự mới lên máy chủ.', 'danger');
+            }
         }
         closeModal();
     };
 
-    const handleToggleStaffStatus = staffId => {
-        ApiService.toggleStaffStatus(staffId);
+    const handleToggleStaffStatus = async staffId => {
+        const updated = await ApiService.toggleStaffStatus(staffId);
+        if (!updated) {
+            addToast('Thao tác bị từ chối', 'Không thể thay đổi trạng thái tài khoản này (tài khoản SysAdmin được bảo vệ hoặc thiếu quyền).', 'danger');
+            return;
+        }
         setStaffUsers(prev =>
             prev.map(s => {
                 if (s.id === staffId) {
-                    const newStatus = s.status === 'active' ? 'locked' : 'active';
+                    const newStatus = updated.status || (s.status === 'active' ? 'locked' : 'active');
                     if (currentUser && (currentUser.staffId === staffId || currentUser.id === staffId) && newStatus === 'locked') {
                         setCurrentUser(null);
                         setViewMode('landing');
                         addToast('Tài khoản bị khóa', 'Tài khoản của bạn đã bị Sysadmin tạm khóa.', 'danger');
                     }
-                    return { ...s, status: newStatus, active: newStatus === 'active' };
+                    return { ...s, ...updated, status: newStatus, active: newStatus === 'active' };
                 }
                 return s;
             })
@@ -768,9 +871,13 @@ export function useHotelController() {
         addToast('Đổi trạng thái tài khoản', 'Trạng thái nhân sự đã được cập nhật.', 'info');
     };
 
-    const handleDeleteStaffUser = staffId => {
+    const handleDeleteStaffUser = async staffId => {
         if (!confirm(`Bạn có chắc muốn xóa tài khoản nhân viên ${staffId} khỏi hệ thống?`)) return;
-        ApiService.deleteStaff(staffId);
+        const ok = await ApiService.deleteStaff(staffId);
+        if (!ok) {
+            addToast('Thao tác bị từ chối', 'Không thể xóa tài khoản nhân sự này (tài khoản SysAdmin được bảo vệ hoặc thiếu quyền).', 'danger');
+            return;
+        }
         setStaffUsers(prev => prev.filter(s => s.id !== staffId));
         if (currentUser && (currentUser.staffId === staffId || currentUser.id === staffId)) {
             setCurrentUser(prev => ({ ...prev, role: 'customer', hasAdminAccess: false, staffId: null }));
@@ -782,10 +889,11 @@ export function useHotelController() {
 
     const handleSetViewMode = mode => {
         if (mode === 'admin') {
-            const hasAccess = currentUser && (
-                currentUser.hasAdminAccess ||
-                currentUser.role === 'staff' ||
-                staffUsers.some(s => (s.email === currentUser.email || s.id === currentUser.id || s.id === currentUser.staffId) && s.status === 'active')
+            const hasAccess = Boolean(
+                currentUser && (
+                    currentUser.hasAdminAccess ||
+                    currentUser.role === 'staff'
+                )
             );
             if (!hasAccess) {
                 addToast('Từ chối truy cập', 'Bạn không được Sysadmin cấp quyền vào trang quản trị.', 'danger');
@@ -813,6 +921,7 @@ export function useHotelController() {
         };
 
         setRolesConfig(prev => [...prev, newRole]);
+        ApiService.updateRole(newRole.id, newRole);
         closeModal();
         addToast('Tạo vai trò mới', `Đã thêm vai trò '${rolePayload.name}' vào ma trận quyền hạn.`, 'success');
     };
@@ -832,10 +941,17 @@ export function useHotelController() {
         }));
     };
 
-    const handleResetRolesMatrix = () => {
-        if (confirm('Khôi phục ma trận phân quyền về mặc định chuẩn 5 sao?')) {
-            setRolesConfig(INITIAL_ROLES);
-            addToast('Đã khôi phục', 'Ma trận quyền đã về trạng thái tiêu chuẩn ban đầu.', 'info');
+    const handleResetRolesMatrix = async () => {
+        if (confirm('Tải lại ma trận phân quyền từ cơ sở dữ liệu MongoDB Atlas?')) {
+            try {
+                const dbRoles = await ApiService.getRoles();
+                if (Array.isArray(dbRoles)) {
+                    setRolesConfig(dbRoles);
+                    addToast('Đã đồng bộ', 'Ma trận quyền đã được tải mới nhất từ MongoDB Atlas.', 'info');
+                }
+            } catch (err) {
+                console.error('Lỗi tải roles:', err);
+            }
         }
     };
 
@@ -843,37 +959,16 @@ export function useHotelController() {
         rolesConfig.forEach(r => {
             ApiService.updateRole(r.id, r);
         });
-        StorageService.set(STORAGE_KEYS.ROLES_CONFIG, rolesConfig);
         addToast('Cấu hình thành công', 'Ma trận quyền hạn đã lưu an toàn vào cơ sở dữ liệu MongoDB Atlas.', 'success');
     };
 
     // -------------------------------------------------------------
-    // Business Logic: System Reset
+    // Business Logic: System Reset / Sync
     // -------------------------------------------------------------
     const handleResetDemoData = async () => {
         if (confirm('Tải lại và đồng bộ toàn bộ dữ liệu mới nhất trực tiếp từ cơ sở dữ liệu MongoDB Atlas?')) {
-            StorageService.clearAll();
-            try {
-                const [dbRooms, dbBookings, dbTransactions, dbStaff, dbRoles] = await Promise.all([
-                    ApiService.getRooms(),
-                    ApiService.getBookings(),
-                    ApiService.getTransactions(),
-                    ApiService.getStaff(),
-                    ApiService.getRoles()
-                ]);
-                if (Array.isArray(dbRooms) && dbRooms.length > 0) setRooms(dbRooms);
-                if (Array.isArray(dbBookings) && dbBookings.length > 0) setBookings(dbBookings);
-                if (Array.isArray(dbTransactions) && dbTransactions.length > 0) {
-                    setTransactions(dbTransactions);
-                    setHistoricalRevenue(buildDynamicHistoricalRevenue(dbTransactions, dbBookings, dbRooms));
-                    setIsBackendConnected(true);
-                }
-                if (Array.isArray(dbStaff) && dbStaff.length > 0) setStaffUsers(dbStaff);
-                if (Array.isArray(dbRoles) && dbRoles.length > 0) setRolesConfig(dbRoles);
-                addToast('Đồng bộ thành công', 'Đã tải toàn bộ dữ liệu thời gian thực từ MongoDB Atlas!', 'success');
-            } catch (err) {
-                console.error('Lỗi sync Atlas:', err);
-            }
+            await syncAtlasData(currentUser, authToken);
+            addToast('Đồng bộ thành công', 'Đã tải toàn bộ dữ liệu thời gian thực từ MongoDB Atlas!', 'success');
         }
     };
 
@@ -914,7 +1009,7 @@ export function useHotelController() {
                 setAdminTab(firstAllowed);
             }
         }
-    }, [activeStaffId, rolesConfig, adminTab]);
+    }, [activeStaffId, rolesConfig, adminTab, currentUser]);
 
     const handleTabChange = tabId => {
         if (!canAccessAdminTab(tabId)) return;
@@ -931,6 +1026,7 @@ export function useHotelController() {
         transactions,
         historicalRevenue,
         currentUser,
+        isSysAdminUser,
         isBackendConnected,
         viewMode,
         adminTab,
@@ -946,7 +1042,7 @@ export function useHotelController() {
         setAdminTab,
         setCurrentFilter,
         setSearchParams,
-        setActiveStaffId,
+        setActiveStaffId: handleSetActiveStaffId,
 
         // Actions
         addToast,
