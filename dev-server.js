@@ -4,7 +4,7 @@
  * ============================================================================
  * Chạy trực tiếp bằng lệnh `npm run dev` mà KHÔNG cần cài thêm thư viện ngoài (vite/webpack).
  * Tự động đóng gói kiến trúc MVC từ `src/` sang `index.html` & `react.html`,
- * theo dõi thay đổi file (File Watcher) và khởi chạy máy chủ tại http://127.0.0.1:5555
+ * theo dõi thay đổi file (File Watcher) và khởi chạy máy chủ tại http://127.0.0.1:2902
  */
 
 import http from 'node:http';
@@ -273,5 +273,5 @@ function startServer(port) {
     });
 }
 
-const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 5555;
+const DEFAULT_PORT = parseInt(process.env.PORT, 10) || 2902;
 startServer(DEFAULT_PORT);
